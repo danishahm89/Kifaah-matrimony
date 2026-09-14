@@ -1,0 +1,53 @@
+# Local parity / self-hosting compose file for the Kifaah backend
+# (CONTRACT.md §7.5) — Postgres + the backend API, .env driven. Not tied to
+# any specific cloud provider.
+#
+# Usage:
+#   cp backend/.env.example backend/.env   # then edit backend/.env
+#   docker compose up --build
+#
+# The backend's DATABASE_URL in backend/.env should point at the `postgres`
+# service by its compose network hostname when run this way, e.g.:
+#   DATABASE_URL="postgresql://postgres:postgres@postgres:5432/kifaah?schema=public"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-kifaah}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - kifaah_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Overrides whatever DATABASE_URL is in backend/.env so this service
+      # always talks to the `postgres` service above, not localhost.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-kifaah}?schema=public
+      PORT: 4000
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - kifaah_uploads:/app/uploads
+
+volumes:
+  kifaah_postgres_data:
+  kifaah_uploads:

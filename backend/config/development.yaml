@@ -1,0 +1,13 @@
+# Overrides default.yaml for local development (and NODE_ENV=test — see the
+# note in default.yaml). Deliberately does NOT relax rateLimit here even
+# though it's tempting: tests/rateLimit.test.ts asserts the exact production
+# limits (e.g. "3 per 10 min" on otp/send), so dev and test share the real
+# limits too — only genuinely test-invisible conveniences differ.
+
+auth:
+  # Longer-lived access token so you're not re-logging-in constantly while
+  # testing the app by hand.
+  jwtExpiresIn: "1h"
+
+logging:
+  level: "debug"

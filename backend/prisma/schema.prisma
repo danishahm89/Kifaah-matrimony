@@ -1,0 +1,198 @@
+// Kifaah backend — Prisma schema
+// Implements CONTRACT.md §3 exactly, translated into valid Prisma syntax.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  BRIDE
+  GROOM
+}
+
+enum Tier {
+  BASIC
+  PREMIUM
+}
+
+enum Billing {
+  MONTHLY
+  ANNUAL
+}
+
+model User {
+  id            String   @id @default(cuid())
+  phone         String   @unique
+  phoneVerified Boolean  @default(false)
+  email         String?  @unique
+  gender        Gender
+  language      String   @default("en")
+  chaperoneChat Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  profile      Profile?
+  subscription Subscription?
+
+  interestsSent     InterestRequest[] @relation("InterestFrom")
+  interestsReceived InterestRequest[] @relation("InterestTo")
+
+  messagesSent     ChatMessage[] @relation("MessageFrom")
+  messagesReceived ChatMessage[] @relation("MessageTo")
+
+  notifications Notification[]
+  refreshTokens RefreshToken[]
+  pushTokens    PushToken[]
+  auditLogs     AuditLog[]
+}
+
+model RefreshToken {
+  id                  String    @id @default(cuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash           String    @unique
+  createdAt           DateTime  @default(now())
+  expiresAt           DateTime
+  revokedAt           DateTime?
+  replacedByTokenHash String?
+
+  @@index([userId])
+}
+
+model PushToken {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expoPushToken String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  event     String
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([event])
+}
+
+model Profile {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  photoUrl  String?
+  sect      String?
+  prayer    String?
+  modesty   String?
+  wali      String  @default("")
+  eduProf   String?
+  profField String?
+  family    String?
+  height    String?
+  city      String?
+  marital   String?
+  about     String?
+  fasting   String?
+  quran     String?
+  hajj      String?
+  polygamy  String?
+
+  diet       String?
+  dietCustom String?
+
+  smoking String?
+
+  habits       String?
+  habitsCustom String?
+
+  likes       String?
+  likesCustom String?
+
+  dislikes       String?
+  dislikesCustom String?
+
+  phone        String?
+  contactEmail String?
+
+  // Not part of the CONTRACT §3 field list, but needed to display candidates
+  // (name/age) without inventing a separate identity model.
+  name String @default("")
+  age  Int?
+
+  @@index([city])
+  @@index([sect])
+}
+
+model Subscription {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tier    Tier?
+  billing Billing?
+  status  String   @default("inactive") // inactive | active | cancelled
+
+  startedAt DateTime?
+  renewsAt  DateTime?
+
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+}
+
+model InterestRequest {
+  id         String @id @default(cuid())
+  fromUserId String
+  toUserId   String
+
+  fromUser User @relation("InterestFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("InterestTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  status    String   @default("pending") // pending | accepted | declined
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([fromUserId, toUserId])
+  @@index([fromUserId, toUserId])
+  @@index([toUserId])
+}
+
+model ChatMessage {
+  id         String @id @default(cuid())
+  fromUserId String
+  toUserId   String
+
+  fromUser User @relation("MessageFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([fromUserId, toUserId])
+  @@index([toUserId, fromUserId])
+}
+
+model Notification {
+  id          String @id @default(cuid())
+  userId      String
+  candidateId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  score     Int
+  label     String
+  text      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}

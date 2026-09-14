@@ -1,0 +1,42 @@
+# Non-secret, per-environment behavioral tuning — checked into git and
+# reviewed like code. Secrets and per-deployment-instance values (DB URL,
+# JWT secret, Twilio/Razorpay/Sentry credentials, allowed CORS origins, the
+# server port, the upload directory) stay in env vars / .env — see
+# src/lib/env.ts and .env.example — never here.
+#
+# This file holds the production-safe baseline; development.yaml overrides
+# only what should be more convenient for local work. There's no test.yaml:
+# NODE_ENV=test (set by tests/setup.ts) also uses development.yaml, since
+# tests and local dev want the same relaxed profile.
+
+rateLimit:
+  general:
+    windowMs: 60000   # 1 minute
+    limit: 100
+  otpSend:
+    windowMs: 600000  # 10 minutes
+    limit: 3
+  otpVerify:
+    windowMs: 60000
+    limit: 30
+  refresh:
+    windowMs: 60000
+    limit: 30
+
+auth:
+  jwtExpiresIn: "15m"
+  refreshTokenDays: 30
+
+matchEngine:
+  cron: "0 9 * * 1"   # Monday 9am
+  minScore: 40
+
+upload:
+  maxFileSizeMb: 5
+  maxDimensionPx: 1600
+
+logging:
+  level: "info"
+
+otp:
+  consoleProviderTtlMinutes: 10

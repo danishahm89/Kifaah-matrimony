@@ -1,0 +1,7 @@
+# Overrides default.yaml for production. Currently identical to the
+# baseline — kept as an explicit file (rather than relying on default.yaml
+# alone) so a reviewer can see exactly what production runs without having
+# to reason about what development.yaml might otherwise have changed.
+
+logging:
+  level: "info"
