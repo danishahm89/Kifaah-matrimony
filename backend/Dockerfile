@@ -11,6 +11,7 @@ RUN npm ci
 # ---- build: compile TypeScript + generate the Prisma client ----
 FROM node:20-alpine AS build
 WORKDIR /app
+RUN apk add --no-cache openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
@@ -22,6 +23,7 @@ RUN npm run build
 # ---- prod-deps: install only production deps, in their own layer ----
 FROM node:20-alpine AS prod-deps
 WORKDIR /app
+RUN apk add --no-cache openssl
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY prisma ./prisma
@@ -30,6 +32,7 @@ RUN npx prisma generate
 # ---- runtime: slim final image, non-root ----
 FROM node:20-alpine AS runtime
 WORKDIR /app
+RUN apk add --no-cache openssl
 ENV NODE_ENV=production
 
 RUN addgroup -S kifaah && adduser -S kifaah -G kifaah
