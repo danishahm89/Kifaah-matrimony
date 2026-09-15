@@ -21,6 +21,10 @@ const baseSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_VERIFY_SERVICE_SID: z.string().optional(),
 
+  // Dev/test only: when set, ConsoleOtpProvider-style bypass is replaced by a fixed code
+  // accepted for ANY phone number. Never allowed in production (see below).
+  STATIC_OTP_CODE: z.string().min(4).optional(),
+
   SENTRY_DSN: z.string().optional(),
 
   RAZORPAY_KEY_ID: z.string().optional(),
@@ -50,6 +54,9 @@ if (isProduction) {
   if (!twilioComplete) {
     missing.push("TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_VERIFY_SERVICE_SID (all required in production)");
   }
+  if (data.STATIC_OTP_CODE) {
+    missing.push("STATIC_OTP_CODE must not be set in production");
+  }
   if (missing.length > 0) {
     // eslint-disable-next-line no-console
     console.error(
@@ -76,6 +83,8 @@ export const env = {
   TWILIO_AUTH_TOKEN: data.TWILIO_AUTH_TOKEN,
   TWILIO_VERIFY_SERVICE_SID: data.TWILIO_VERIFY_SERVICE_SID,
   twilioConfigured: !!(data.TWILIO_ACCOUNT_SID && data.TWILIO_AUTH_TOKEN && data.TWILIO_VERIFY_SERVICE_SID),
+
+  STATIC_OTP_CODE: data.STATIC_OTP_CODE,
 
   SENTRY_DSN: data.SENTRY_DSN,
 
