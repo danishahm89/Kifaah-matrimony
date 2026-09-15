@@ -29,6 +29,10 @@ const baseSchema = z.object({
   // real Razorpay API entirely (fake order, no signature check). Never allowed
   // in production (see below).
   PAYMENTS_BYPASS: z.string().optional(),
+  // Optional Google Drive photo storage. When both are set (and the key file
+  // exists), profile photos upload to Drive instead of local disk.
+  GOOGLE_SERVICE_ACCOUNT_KEY_FILE: z.string().optional(),
+  GOOGLE_DRIVE_FOLDER_ID: z.string().optional(),
 
   SENTRY_DSN: z.string().optional(),
 
@@ -94,6 +98,8 @@ export const env = {
 
   STATIC_OTP_CODE: data.STATIC_OTP_CODE,
   PAYMENTS_BYPASS: !!data.PAYMENTS_BYPASS,
+  GOOGLE_SERVICE_ACCOUNT_KEY_FILE: data.GOOGLE_SERVICE_ACCOUNT_KEY_FILE,
+  GOOGLE_DRIVE_FOLDER_ID: data.GOOGLE_DRIVE_FOLDER_ID,
 
   SENTRY_DSN: data.SENTRY_DSN,
 

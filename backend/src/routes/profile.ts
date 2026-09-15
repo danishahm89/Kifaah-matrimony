@@ -11,6 +11,7 @@ import { requireAuth, AuthedRequest } from "../middleware/auth";
 import { logger } from "../lib/logger";
 import dynamicImport from "../lib/dynamicImport";
 import { appConfig } from "../lib/appConfig";
+import { driveConfigured, uploadPhoto, streamPhoto } from "../lib/googleDrive";
 
 const router = Router();
 
@@ -142,16 +143,58 @@ router.post("/photo", requireAuth, upload.single("file"), handleUploadErrors, as
     return res.status(400).json({ error: "invalid_image", message: "Could not process this image." });
   }
 
-  const filename = `${req.userId}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.jpg`;
-  await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), outputBuffer);
+  let photoUrl: string;
+  if (driveConfigured) {
+    // Filename convention requested: profile_name_profile_id (profile_id == userId,
+    // which is the Profile model's own @id). Sanitize the name for a safe filename.
+    const existing = await prisma.profile.findUnique({ where: { userId: req.userId! } });
+    const rawName = existing?.name?.trim() || "profile";
+    const safeName = rawName.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "profile";
+    const filename = `${safeName}_${req.userId}.jpg`;
 
-  const photoUrl = `/uploads/${filename}`;
+    let fileId: string;
+    try {
+      fileId = await uploadPhoto(outputBuffer, filename, "image/jpeg");
+    } catch (err) {
+      logger.warn({ err }, "Google Drive upload failed");
+      return res.status(502).json({ error: "upload_failed", message: "Could not upload photo. Please try again." });
+    }
+    photoUrl = `/api/profile/photos/drive/${fileId}`;
+  } else {
+    const filename = `${req.userId}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.jpg`;
+    await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), outputBuffer);
+    photoUrl = `/uploads/${filename}`;
+  }
+
   await prisma.profile.upsert({
     where: { userId: req.userId! },
     update: { photoUrl },
     create: { userId: req.userId!, wali: "", photoUrl },
   });
   res.json({ photoUrl });
+});
+
+/**
+ * Streams a Drive-stored photo back to the client. Unauthenticated (mirrors the
+ * existing /uploads static route's security model: obscurity via an unguessable
+ * id, not an auth check) since profile detail screens need to load photos for
+ * candidates the viewer hasn't matched with yet, same as local-disk photos.
+ * The underlying Drive file is never shared publicly - only this server (via the
+ * service account) can read it, so knowing the id alone doesn't work outside the app.
+ */
+router.get("/photos/drive/:fileId", async (req, res) => {
+  if (!driveConfigured) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  try {
+    const { stream, mimeType } = await streamPhoto(req.params.fileId);
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    stream.pipe(res);
+  } catch (err) {
+    logger.warn({ err, fileId: req.params.fileId }, "Failed to stream photo from Drive");
+    res.status(404).json({ error: "not_found" });
+  }
 });
 
 export default router;
