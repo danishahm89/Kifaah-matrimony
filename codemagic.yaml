@@ -23,8 +23,12 @@ workflows:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+          echo '--- APK search ---'
+          find /Users/builder/clone -iname '*.apk' 2>/dev/null
     artifacts:
       - mobile/android/app/build/outputs/apk/debug/*.apk
+      - android/app/build/outputs/apk/debug/*.apk
+      - "**/outputs/apk/debug/*.apk"
     publishing:
       email:
         recipients:
