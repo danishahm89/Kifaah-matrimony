@@ -119,12 +119,15 @@ export function WelcomeScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {mode === 'pick' ? (
             <>
-              <Text style={styles.brand}>KIFAAH</Text>
-              <View style={styles.rule} />
-              <Text style={styles.intro}>
-                A matrimony app for the Muslim community — built around Shariah etiquette: photos stay blurred,
-                contact details stay hidden, and every profile is guardian-aware, until both sides agree to connect.
-              </Text>
+              <View style={styles.brandBand}>
+                <Text style={styles.brandEyebrow}>ISLAMIC MATRIMONY  ·  SHARIAH-GUIDED</Text>
+                <Text style={styles.brand}>KIFAAH</Text>
+                <View style={styles.rule} />
+                <Text style={styles.intro}>
+                  A matrimony app for the Muslim community — built around Shariah etiquette: photos stay blurred,
+                  contact details stay hidden, and every profile is guardian-aware, until both sides agree to connect.
+                </Text>
+              </View>
               {notice ? <Text style={styles.error}>{notice}</Text> : null}
               <Text style={styles.eyebrow}>I am a</Text>
               <Button title="Brother, looking for a sister" variant="surface" onPress={() => pick('groom')} />
@@ -186,6 +189,21 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     paddingBottom: 32,
     gap: 20,
+  },
+  brandBand: {
+    marginHorizontal: -24,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 24,
+    gap: 10,
+    backgroundColor: colors.greenBg,
+  },
+  brandEyebrow: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.greenText,
   },
   brand: {
     fontFamily: fonts.extraBold,
