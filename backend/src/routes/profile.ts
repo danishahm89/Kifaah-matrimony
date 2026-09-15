@@ -85,7 +85,7 @@ const profileUpdateSchema = z
     phone: z.string().optional(),
     contactEmail: z.string().optional(),
   })
-  .strict();
+  ;
 
 router.put("/me", requireAuth, async (req: AuthedRequest, res) => {
   const parsed = profileUpdateSchema.safeParse(req.body);
