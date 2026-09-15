@@ -18,27 +18,13 @@ workflows:
         script: |
           mkdir -p android/app/src/main/res/drawable
           cp assets/splash-icon.png android/app/src/main/res/drawable/splashscreen_logo.png
-      - name: Configure release signing
-        script: |
-          echo $CM_KEYSTORE | base64 --decode > android/app/release.keystore
-          python3 - << 'PYEOF'
-          import re
-          path = "android/app/build.gradle"
-          with open(path) as f:
-              content = f.read()
-          release_signing = "\n        release {\n            storeFile file('release.keystore')\n            storePassword System.getenv(\"CM_KEYSTORE_PASSWORD\")\n            keyAlias System.getenv(\"CM_KEY_ALIAS\")\n            keyPassword System.getenv(\"CM_KEY_PASSWORD\")\n        }\n"
-          content = content.replace("signingConfigs {", "signingConfigs {" + release_signing, 1)
-          content = re.sub(r'(release\s*\{[^}]*?)signingConfig\s+signingConfigs\.debug', r'\1signingConfig signingConfigs.release', content, flags=re.S)
-          with open(path, "w") as f:
-              f.write(content)
-          PYEOF
-      - name: Build release APK
+      - name: Build debug APK
         script: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleDebug --no-daemon
     artifacts:
-      - mobile/android/app/build/outputs/apk/release/*.apk
+      - mobile/android/app/build/outputs/apk/debug/*.apk
     publishing:
       email:
         recipients:
