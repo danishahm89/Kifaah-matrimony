@@ -18,6 +18,17 @@ workflows:
         script: |
           mkdir -p android/app/src/main/res/drawable
           cp assets/splash-icon.png android/app/src/main/res/drawable/splashscreen_logo.png
+      - name: Verify keystore signing values
+        script: |
+          echo $CM_KEYSTORE | base64 --decode > /tmp/verify.keystore
+          if keytool -list -keystore /tmp/verify.keystore -storepass "$CM_KEYSTORE_PASSWORD" -alias "$CM_KEY_ALIAS" > /tmp/verify.log 2>&1; then
+            echo "KEYSTORE VALIDATION OK"
+            cat /tmp/verify.log
+          else
+            echo "KEYSTORE VALIDATION FAILED"
+            cat /tmp/verify.log
+            exit 1
+          fi
       - name: Configure release signing
         script: |
           echo $CM_KEYSTORE | base64 --decode > android/app/release.keystore
