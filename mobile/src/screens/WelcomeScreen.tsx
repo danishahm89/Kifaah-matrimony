@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { Button } from '../components/Button';
@@ -35,6 +35,11 @@ function authErrorMessage(err: unknown): string | null {
 
 export function WelcomeScreen() {
   const [mode, setMode] = useState<Mode>('pick');
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+  }, [fadeAnim]);
   const [authMode, setAuthMode] = useState<AuthMode>('signup');
   const [gender, setGender] = useState<Gender | null>(null);
   const [phone, setPhone] = useState('');
@@ -119,7 +124,7 @@ export function WelcomeScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {mode === 'pick' ? (
             <>
-              <View style={styles.brandBand}>
+              <Animated.View style={[styles.brandBand, { opacity: fadeAnim }]}>
                 <Text style={styles.brandEyebrow}>ISLAMIC MATRIMONY  ·  SHARIAH-GUIDED</Text>
                 <Text style={styles.brand}>KIFAAH</Text>
                 <View style={styles.rule} />
@@ -127,7 +132,7 @@ export function WelcomeScreen() {
                   A matrimony app for the Muslim community — built around Shariah etiquette: photos stay blurred,
                   contact details stay hidden, and every profile is guardian-aware, until both sides agree to connect.
                 </Text>
-              </View>
+              </Animated.View>
               {notice ? <Text style={styles.error}>{notice}</Text> : null}
               <Text style={styles.eyebrow}>I am a</Text>
               <Button title="Brother, looking for a sister" variant="surface" onPress={() => pick('groom')} />

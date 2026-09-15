@@ -1,5 +1,5 @@
-import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
+import React, { useRef } from 'react';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 import { colors, fonts } from '../theme/tokens';
 
 type Variant = 'primary' | 'surface' | 'outline' | 'text' | 'small-primary' | 'small-outline';
@@ -16,25 +16,40 @@ interface Props {
 
 export function Button({ title, onPress, variant = 'primary', disabled, loading, style, align = 'left' }: Props) {
   const variantStyle = VARIANT_STYLES[variant];
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (toValue: number) => {
+    Animated.spring(scale, {
+      toValue,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 6,
+    }).start();
+  };
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={({ pressed }) => [
-        styles.base,
-        variantStyle.container,
-        align === 'center' && styles.center,
-        (disabled || loading) && styles.disabled,
-        pressed && !disabled && !loading && styles.pressed,
-        style,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator color={variantStyle.text.color as string} size="small" />
-      ) : (
-        <Text style={[styles.text, variantStyle.text]}>{title}</Text>
-      )}
-    </Pressable>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={onPress}
+        disabled={disabled || loading}
+        onPressIn={() => !disabled && !loading && animateTo(0.96)}
+        onPressOut={() => animateTo(1)}
+        style={({ pressed }) => [
+          styles.base,
+          variantStyle.container,
+          align === 'center' && styles.center,
+          (disabled || loading) && styles.disabled,
+          pressed && !disabled && !loading && styles.pressed,
+          style,
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator color={variantStyle.text.color as string} size="small" />
+        ) : (
+          <Text style={[styles.text, variantStyle.text]}>{title}</Text>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
