@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,6 +27,7 @@ import { useAuthStore } from '../store/authStore';
 import { useOnboardingStore } from '../store/onboardingStore';
 import { useUpdateProfile, useUploadPhoto } from '../api/hooks/useProfile';
 import { ApiError } from '../api/client';
+import { friendlyProfileError } from '../utils/friendlyProfileError';
 import type { RootStackParamList } from '../navigation/types';
 
 const OTHER_SPECIFY = 'Other (specify)';
@@ -96,13 +107,22 @@ export function ProfileSetupScreen() {
 
   const finish = async () => {
     setSubmitError(null);
+
+    // Client-side check before hitting the network: `name` is the one field this
+    // screen owns that the backend requires non-empty (CONTRACT §4). Catching it
+    // here avoids a round trip and a cryptic "invalid_input" from the server.
+    if (!draft.name || !draft.name.trim()) {
+      setSubmitError('Please enter your name.');
+      return;
+    }
+
     try {
       await updateProfile.mutateAsync(draft);
       reset();
       // No explicit navigation call needed: RootNavigator swaps to the Main stack once
       // `wali` is present on the refetched profile (see useMe invalidation in useUpdateProfile).
     } catch (e: any) {
-      setSubmitError(e?.message || 'Could not save your profile. Please try again.');
+      setSubmitError(friendlyProfileError(e));
     }
   };
 
@@ -122,7 +142,12 @@ export function ProfileSetupScreen() {
   return (
     <Screen>
       <Header title="Your profile" onBack={() => navigation.navigate('ShariahQA')} />
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.sideBySide}>
           <View style={styles.flex1}>
             <FieldLabel>Full name</FieldLabel>
@@ -280,13 +305,17 @@ export function ProfileSetupScreen() {
         </View>
 
         {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
-        <Button title="Enter Kifaah" onPress={finish} loading={updateProfile.isPending} style={styles.finishBtn} />
-      </ScrollView>
+          <Button title="Enter Kifaah" onPress={finish} loading={updateProfile.isPending} style={styles.finishBtn} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoider: {
+    flex: 1,
+  },
   loading: {
     flex: 1,
     alignItems: 'center',

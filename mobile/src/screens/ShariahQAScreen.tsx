@@ -1,5 +1,13 @@
-import React from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
@@ -21,6 +29,7 @@ export function ShariahQAScreen() {
   const gender = useAuthStore((s) => s.user?.gender ?? 'bride');
   const { data: ref, isLoading } = useReference();
   const { draft, setField } = useOnboardingStore();
+  const [waliError, setWaliError] = useState<string | null>(null);
 
   const modestyQuestion = gender === 'bride' ? 'Hijab' : 'Beard';
   const polygamyQuestion = gender === 'groom' ? 'View on polygamy' : 'View on being a co-wife';
@@ -41,7 +50,12 @@ export function ShariahQAScreen() {
   return (
     <Screen>
       <Header title="Shariah compliance" onBack={() => navigation.navigate('Welcome')} />
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.intro}>A few questions so matches are compatible in practice, not just on paper.</Text>
 
         <View>
@@ -73,9 +87,13 @@ export function ShariahQAScreen() {
           <FieldLabel>Wali / guardian's name</FieldLabel>
           <TextField
             value={draft.wali ?? ''}
-            onChangeText={(v) => setField('wali', v)}
+            onChangeText={(v) => {
+              setField('wali', v);
+              if (waliError) setWaliError(null);
+            }}
             placeholder="e.g. Father — Abdul Kareem"
           />
+          {waliError ? <Text style={styles.error}>{waliError}</Text> : null}
         </View>
 
         <View>
@@ -102,13 +120,36 @@ export function ShariahQAScreen() {
           />
         </View>
 
-        <Button title="Continue" onPress={() => navigation.navigate('ProfileSetup')} style={styles.continueBtn} />
-      </ScrollView>
+          <Button
+            title="Continue"
+            onPress={() => {
+              // A wali is fixed, not optional (per the notice above), and the backend
+              // rejects an explicit blank with a bare "invalid_input" — catch it here
+              // with a message that says what to do, instead of letting that reach the user.
+              if (!draft.wali || !draft.wali.trim()) {
+                setWaliError("Please add your wali's (guardian's) name to continue.");
+                return;
+              }
+              navigation.navigate('ProfileSetup');
+            }}
+            style={styles.continueBtn}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoider: {
+    flex: 1,
+  },
+  error: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: colors.redDark,
+    marginTop: 6,
+  },
   loading: {
     flex: 1,
     alignItems: 'center',
