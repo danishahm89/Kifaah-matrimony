@@ -3,7 +3,8 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
 import { createOrder, verifyPaymentSignature, verifyWebhookSignature } from "../services/razorpay";
-import { Billing } from "../lib/pricing";
+import { Billing, priceFor } from "../lib/pricing";
+import { env } from "../lib/env";
 import { writeAuditLog } from "../lib/audit";
 import { logger } from "../lib/logger";
 
@@ -29,7 +30,14 @@ router.post("/create-order", requireAuth, async (req: AuthedRequest, res) => {
   const { tier, billing } = parsed.data;
 
   try {
-    const { order, amountPaise } = await createOrder(tier, billing, `kifaah_${req.userId}_${Date.now()}`);
+    // Dev/test only (env.ts refuses to boot with this set in production): skip
+    // the real Razorpay API and hand back a fake order the /verify route below
+    // recognizes and accepts without a signature. Same subscription upsert runs
+    // either way, so switching tiers/billing still only ever touches one row.
+    const { order, amountPaise } =
+      env.PAYMENTS_BYPASS && !env.isProduction
+        ? { order: { id: `bypass_${req.userId}_${Date.now()}` }, amountPaise: priceFor(tier, billing) * 100 }
+        : await createOrder(tier, billing, `kifaah_${req.userId}_${Date.now()}`);
 
     await prisma.subscription.upsert({
       where: { userId: req.userId! },
@@ -42,11 +50,13 @@ router.post("/create-order", requireAuth, async (req: AuthedRequest, res) => {
       },
     });
 
+    const bypassed = env.PAYMENTS_BYPASS && !env.isProduction;
     res.json({
       orderId: order.id,
       amount: amountPaise,
       currency: "INR",
-      keyId: process.env.RAZORPAY_KEY_ID,
+      keyId: bypassed ? "bypass" : process.env.RAZORPAY_KEY_ID,
+      bypass: bypassed,
     });
   } catch (err) {
     logger.error({ err }, "create-order failed");
@@ -67,7 +77,14 @@ router.post("/verify", requireAuth, async (req: AuthedRequest, res) => {
   }
   const { orderId, paymentId, signature } = parsed.data;
 
-  const valid = verifyPaymentSignature(orderId, paymentId, signature);
+  // Dev/test only (env.ts refuses to boot with this set in production): a
+  // bypass-mode order (see /create-order above) carries no real Razorpay
+  // signature, so accept it on the fixed sentinel signature instead. Any
+  // orderId that was NOT created in bypass mode still requires the real
+  // HMAC signature below — this cannot be used to forge a real payment.
+  const bypassOk =
+    env.PAYMENTS_BYPASS && !env.isProduction && orderId.startsWith("bypass_") && signature === "BYPASS";
+  const valid = bypassOk || verifyPaymentSignature(orderId, paymentId, signature);
   if (!valid) {
     return res.status(400).json({ error: "invalid_signature" });
   }

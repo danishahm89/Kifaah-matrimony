@@ -25,6 +25,11 @@ const baseSchema = z.object({
   // accepted for ANY phone number. Never allowed in production (see below).
   STATIC_OTP_CODE: z.string().min(4).optional(),
 
+  // Dev/test only: when set, /api/payments/create-order and /verify bypass the
+  // real Razorpay API entirely (fake order, no signature check). Never allowed
+  // in production (see below).
+  PAYMENTS_BYPASS: z.string().optional(),
+
   SENTRY_DSN: z.string().optional(),
 
   RAZORPAY_KEY_ID: z.string().optional(),
@@ -57,6 +62,9 @@ if (isProduction) {
   if (data.STATIC_OTP_CODE) {
     missing.push("STATIC_OTP_CODE must not be set in production");
   }
+  if (data.PAYMENTS_BYPASS) {
+    missing.push("PAYMENTS_BYPASS must not be set in production");
+  }
   if (missing.length > 0) {
     // eslint-disable-next-line no-console
     console.error(
@@ -85,6 +93,7 @@ export const env = {
   twilioConfigured: !!(data.TWILIO_ACCOUNT_SID && data.TWILIO_AUTH_TOKEN && data.TWILIO_VERIFY_SERVICE_SID),
 
   STATIC_OTP_CODE: data.STATIC_OTP_CODE,
+  PAYMENTS_BYPASS: !!data.PAYMENTS_BYPASS,
 
   SENTRY_DSN: data.SENTRY_DSN,
 
