@@ -29,9 +29,10 @@ export function ProfileDetailScreen() {
   const showToast = useToastStore((s) => s.show);
 
   // CONTRACT.md §8.10 — a private photo can render here, so this is one of the screens
-  // `usePreventScreenCapture` covers; no conversationId is threaded through (a profile view isn't
-  // tied to one) so the SecurityEvent this creates is profile-level, not conversation-level.
-  useScreenshotReporting(undefined);
+  // `usePreventScreenCapture` covers. No conversationId (a profile view isn't tied to one, and one
+  // may not exist yet pre-connection) — pass targetUserId instead so the backend still knows who
+  // to notify (this profile's owner), per the backend's own §8.10 deviation #5.
+  useScreenshotReporting(undefined, profileId);
 
   const { data: detail, isLoading } = useProfileDetail(profileId);
   const sendInterest = useSendInterest();

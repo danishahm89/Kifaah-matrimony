@@ -241,7 +241,23 @@ export function ChatThreadScreen() {
             </Text>
           ) : null}
           {banner.kind === 'reopen_requested_by_me' ? (
-            <Text style={styles.lifecycleText}>Reopen request sent — waiting for {name} to respond.</Text>
+            <>
+              <Text style={styles.lifecycleText}>Reopen request sent — waiting for {name} to respond.</Text>
+              {/* The backend allows the requester to cancel their own pending reopen request (it's
+                  the same POST .../reopen-request/reject route, just called by the requester
+                  instead of the recipient) — surface that capability rather than only letting them wait. */}
+              <Pressable
+                style={[styles.lifecycleBtn, { marginTop: 8 }]}
+                onPress={() =>
+                  rejectReopen.mutate(undefined, {
+                    onError: () => showToast('Could not cancel the reopen request. Please try again.'),
+                  })
+                }
+                disabled={rejectReopen.isPending}
+              >
+                <Text style={styles.lifecycleBtnText}>Cancel Request</Text>
+              </Pressable>
+            </>
           ) : null}
           {banner.kind === 'reopen_requested_by_them' ? (
             <>

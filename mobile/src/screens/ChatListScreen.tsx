@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,7 +9,8 @@ import { TabHeader } from '../components/TabHeader';
 import { PlaceholderPhoto } from '../components/PlaceholderPhoto';
 import { EmptyState } from '../components/EmptyState';
 import { colors, fonts } from '../theme/tokens';
-import { useConversations } from '../api/hooks/useChat';
+import { useConversations, useArchivedConversations } from '../api/hooks/useChat';
+import { SegmentRow } from '../components/SegmentRow';
 import { useAuthStore } from '../store/authStore';
 import { tabStrings } from '../i18n/strings';
 import { resolvePhotoUrl } from '../api/client';
@@ -24,12 +25,17 @@ type Nav = CompositeNavigationProp<
 export function ChatListScreen() {
   const navigation = useNavigation<Nav>();
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
-  const { data: chats = [], isLoading, refetch, isRefetching } = useConversations();
+  const [tab, setTab] = useState<'active' | 'archived'>('active');
+
+  const activeQuery = useConversations();
+  const archivedQuery = useArchivedConversations(tab === 'archived');
+  const { data: chats = [], isLoading, refetch, isRefetching } = tab === 'active' ? activeQuery : archivedQuery;
 
   useFocusEffect(
     useCallback(() => {
-      refetch();
-    }, [refetch])
+      if (tab === 'active') activeQuery.refetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tab])
   );
 
   const statusLabel = (status?: ChatSummary['conversationStatus']) => {
@@ -73,6 +79,17 @@ export function ChatListScreen() {
   return (
     <Screen edges={['top']}>
       <TabHeader title={tabStrings(lang).chat} />
+      <View style={styles.tabsRow}>
+        <SegmentRow
+          wrap={false}
+          options={[
+            { label: 'Active', value: 'active' },
+            { label: 'Archived', value: 'archived' },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as 'active' | 'archived')}
+        />
+      </View>
       <FlatList
         data={chats}
         keyExtractor={(item) => item.userId}
@@ -81,7 +98,13 @@ export function ChatListScreen() {
         onRefresh={refetch}
         ListEmptyComponent={
           !isLoading ? (
-            <EmptyState text="No conversations yet. Chats open once you both subscribe and a request is accepted." />
+            <EmptyState
+              text={
+                tab === 'archived'
+                  ? 'No archived conversations. Conversations closed for 6+ months are archived here automatically.'
+                  : 'No conversations yet. Chats open once you both subscribe and a request is accepted.'
+              }
+            />
           ) : null
         }
       />
@@ -90,6 +113,10 @@ export function ChatListScreen() {
 }
 
 const styles = StyleSheet.create({
+  tabsRow: {
+    paddingHorizontal: 20,
+    paddingTop: 14,
+  },
   row: {
     flexDirection: 'row',
     gap: 14,

@@ -12,7 +12,7 @@ import { securityApi } from '../api/client';
 // LIMITATION (also documented in mobile/README.md): this cannot detect screen recording, a second
 // device photographing the screen, or — on iOS — be prevented at all, only detected after the
 // fact. Web is out of scope for this pass.
-export function useScreenshotReporting(conversationId?: string) {
+export function useScreenshotReporting(conversationId?: string, targetUserId?: string) {
   ScreenCapture.usePreventScreenCapture();
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function useScreenshotReporting(conversationId?: string) {
   ScreenCapture.useScreenshotListener(() => {
     if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
     securityApi
-      .reportScreenshot({ conversationId, platform: Platform.OS })
+      .reportScreenshot({ conversationId, targetUserId, platform: Platform.OS })
       .catch(() => {
         // Best-effort — a failed report should never interrupt the person's own use of the app.
       });

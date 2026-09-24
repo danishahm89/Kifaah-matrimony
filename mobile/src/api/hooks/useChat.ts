@@ -9,6 +9,12 @@ export function useConversations() {
   return useQuery({ queryKey: queryKeys.chats, queryFn: chatApi.conversations });
 }
 
+// CONTRACT.md §8.9/§8.16 — archived conversations "should remain accessible through archived
+// conversations," a distinct view from the active list rather than mixed into it.
+export function useArchivedConversations(enabled: boolean) {
+  return useQuery({ queryKey: queryKeys.archivedChats, queryFn: chatApi.archivedConversations, enabled });
+}
+
 // Polls REST as the source of truth, and joins the Socket.IO /chat namespace for live
 // delivery when available (falling back gracefully to plain polling if the socket doesn't
 // connect — kept deliberately simple per CONTRACT.md's guidance).

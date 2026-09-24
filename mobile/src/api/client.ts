@@ -201,7 +201,10 @@ export const blocksApi = {
 
 // ---- Security / screenshot detection (CONTRACT.md §8.10) ----
 export const securityApi = {
-  reportScreenshot: (payload: { conversationId?: string; platform: 'ios' | 'android' }) =>
+  // `targetUserId` lets the backend notify the right person when there's no conversation yet
+  // (e.g. a screenshot taken while viewing a candidate's ProfileDetail pre-connection) — the
+  // backend ignores it when `conversationId` is present (CONTRACT.md §8.10 deviation #5).
+  reportScreenshot: (payload: { conversationId?: string; targetUserId?: string; platform: 'ios' | 'android' }) =>
     post<{ ok: true }>('/api/security/screenshot-event', payload),
 };
 
@@ -254,6 +257,9 @@ export const interestsApi = {
 // ---- Chat ----
 export const chatApi = {
   conversations: () => get<ChatSummary[]>('/api/chats'),
+  // CONTRACT.md §8.9 — closed conversations older than 6 months are swept into this list by a
+  // daily backend job; still readable (never deleted), just excluded from the default list above.
+  archivedConversations: () => get<ChatSummary[]>('/api/chats?archived=true'),
   // GET /api/chats/:userId/messages returns { messages, chaperoneChat } (backend/src/routes/chats.ts);
   // the app sources the chaperone banner state from the auth store's user.chaperoneChat instead, so
   // only the message list is needed here.
