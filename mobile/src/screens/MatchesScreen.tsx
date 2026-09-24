@@ -71,6 +71,7 @@ export function MatchesScreen() {
         </Text>
         <Text style={styles.meta}>{item.city} · sent you interest</Text>
       </View>
+      {item.status === 'pending' && (
       <View style={styles.actions}>
         <Button
           title="Accept"
@@ -92,6 +93,7 @@ export function MatchesScreen() {
         <Button title="Decline" variant="small-outline" onPress={() => decline.mutate({ id: item.id, profileId: item.fromUserId })} />
       </View>
     </View>
+      )}{/* end status pending check */}
   );
 
   return (

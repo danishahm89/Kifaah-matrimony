@@ -51,7 +51,7 @@ export function ChatThreadScreen() {
           <Text style={styles.chaperoneText}>Visible to both families' guardians (wali), in line with Islamic etiquette.</Text>
         </View>
       ) : null}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }} keyboardVerticalOffset={90}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={90}>
         <FlatList
           ref={listRef}
           data={messages}
@@ -62,12 +62,13 @@ export function ChatThreadScreen() {
         />
         <View style={styles.inputRow}>
           <TextField
-            style={{ flex: 1 }}
+            style={{ flex: 1, maxHeight: 120 }}
             value={draft}
             onChangeText={setDraft}
-            placeholder="Type a message"
-            onSubmitEditing={onSend}
-            returnKeyType="send"
+            placeholder="Type a message..."
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
           />
           <Pressable style={styles.sendBtn} onPress={onSend}>
             <SendIcon />

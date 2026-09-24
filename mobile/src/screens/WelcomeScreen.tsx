@@ -120,7 +120,7 @@ export function WelcomeScreen() {
   return (
     <Screen>
       {mode === 'auth' ? <Header title={headerTitle} onBack={goBack} /> : null}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {mode === 'pick' ? (
             <>
