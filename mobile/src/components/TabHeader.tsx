@@ -1,20 +1,33 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, fonts } from '../theme/tokens';
 import { BellIcon, GlobeIcon } from '../icons';
 import { useNotifications, useMarkNotificationsRead } from '../api/hooks/useNotifications';
+import { useConversations } from '../api/hooks/useChat';
 import { useToggleLanguage } from '../api/hooks/useAccount';
 import { useAuthStore } from '../store/authStore';
 import { langToggleLabel } from '../i18n/strings';
+import { resolveNotificationTarget } from '../navigation/notificationTarget';
+import type { RootStackParamList } from '../navigation/types';
+import type { NotificationItem } from '../types';
 
 interface Props {
   title: string;
-  onOpenNotification: (candidateId: string) => void;
 }
 
-export function TabHeader({ title, onOpenNotification }: Props) {
+// CONTRACT.md §8.6 — generalized notifications. Navigation on tap is resolved centrally here
+// (rather than duplicated per screen, as the old `onOpenNotification(candidateId)` prop required)
+// via `resolveNotificationTarget`, branching on `type` per the §8.6 table.
+export function TabHeader({ title }: Props) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [notifOpen, setNotifOpen] = useState(false);
   const { data: notifications = [] } = useNotifications();
+  // Only needed to resolve a `new_message`/`reopen_*`/`screenshot_alert` notification to a display
+  // name (and, for `screenshot_alert`, its conversationId -> userId) — cheap, since `useChat`'s
+  // conversations list is already cached process-wide by React Query.
+  const { data: conversations = [] } = useConversations();
   const markRead = useMarkNotificationsRead();
   const toggleLang = useToggleLanguage();
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
@@ -25,6 +38,19 @@ export function TabHeader({ title, onOpenNotification }: Props) {
     const opening = !notifOpen;
     setNotifOpen(opening);
     if (opening && hasUnread) markRead.mutate();
+  };
+
+  const openNotification = (n: NotificationItem) => {
+    setNotifOpen(false);
+    const target = resolveNotificationTarget(n, conversations);
+    if (!target) return;
+    if (target.screen === 'ProfileDetail') {
+      navigation.navigate('ProfileDetail', { profileId: target.profileId, origin: 'notification' });
+    } else if (target.screen === 'ChatThread') {
+      navigation.navigate('ChatThread', { userId: target.userId, name: target.name });
+    } else {
+      navigation.navigate('Main', { screen: 'Chat' });
+    }
   };
 
   return (
@@ -49,24 +75,16 @@ export function TabHeader({ title, onOpenNotification }: Props) {
       {notifOpen ? (
         <View style={styles.panel}>
           <View style={styles.panelHeader}>
-            <Text style={styles.panelTitle}>Match recommendations</Text>
-            <Text style={styles.panelSub}>Weekly + on signup</Text>
+            <Text style={styles.panelTitle}>Notifications</Text>
           </View>
           {notifications.length > 0 ? (
             <ScrollView style={styles.panelList}>
               {notifications.map((n) => (
-                <Pressable
-                  key={n.id}
-                  style={styles.notifRow}
-                  onPress={() => {
-                    setNotifOpen(false);
-                    onOpenNotification(n.candidateId);
-                  }}
-                >
+                <Pressable key={n.id} style={styles.notifRow} onPress={() => openNotification(n)}>
                   <View style={[styles.notifDot, n.read && styles.notifDotRead]} />
                   <View style={styles.notifBody}>
-                    <Text style={styles.notifText}>{n.text}</Text>
-                    <Text style={styles.notifWhen}>{n.label}</Text>
+                    <Text style={styles.notifTitle}>{n.title}</Text>
+                    <Text style={styles.notifText}>{n.message}</Text>
                   </View>
                 </Pressable>
               ))}
@@ -158,11 +176,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.ink,
   },
-  panelSub: {
-    fontSize: 10,
-    fontFamily: fonts.semiBold,
-    color: colors.muted,
-  },
   panelList: {
     maxHeight: 280,
   },
@@ -187,16 +200,16 @@ const styles = StyleSheet.create({
   notifBody: {
     flex: 1,
   },
+  notifTitle: {
+    fontFamily: fonts.extraBold,
+    fontSize: 12,
+    color: colors.ink,
+  },
   notifText: {
     fontFamily: fonts.regular,
     fontSize: 13,
     color: colors.ink,
     lineHeight: 18,
-  },
-  notifWhen: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.muted,
     marginTop: 2,
   },
   empty: {

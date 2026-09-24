@@ -20,6 +20,9 @@ export type RootStackParamList = {
     returnTo: 'account' | 'detail';
     pendingInterestProfileId?: string;
   };
-  ChatThread: { userId: string; name: string };
+  // `name` is optional so a notification (which only carries the other user's id — CONTRACT §8.6)
+  // can navigate straight here; ChatThreadScreen falls back to the cached conversations list (and
+  // finally a generic label) when it's missing.
+  ChatThread: { userId: string; name?: string };
   FAQ: undefined;
 };

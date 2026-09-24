@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
@@ -9,10 +9,12 @@ import { PlaceholderPhoto } from '../components/PlaceholderPhoto';
 import { MatchChip } from '../components/MatchChip';
 import { ShieldIcon } from '../icons';
 import { colors, fonts } from '../theme/tokens';
-import { useProfileDetail } from '../api/hooks/useDiscover';
+import { useProfileDetail, useRequestPhoto, useAcceptPhotoRequest, useRejectPhotoRequest } from '../api/hooks/useDiscover';
 import { useSendInterest } from '../api/hooks/useInterests';
+import { useBlockUser } from '../api/hooks/useBlocks';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/uiStore';
+import { useScreenshotReporting } from '../hooks/useScreenshotReporting';
 import { ApiError } from '../api/client';
 import { resolvePhotoUrl } from '../api/client';
 import type { RootStackParamList } from '../navigation/types';
@@ -26,8 +28,36 @@ export function ProfileDetailScreen() {
   const chaperoneOn = useAuthStore((s) => s.user?.chaperoneChat ?? true);
   const showToast = useToastStore((s) => s.show);
 
+  // CONTRACT.md §8.10 — a private photo can render here, so this is one of the screens
+  // `usePreventScreenCapture` covers; no conversationId is threaded through (a profile view isn't
+  // tied to one) so the SecurityEvent this creates is profile-level, not conversation-level.
+  useScreenshotReporting(undefined);
+
   const { data: detail, isLoading } = useProfileDetail(profileId);
   const sendInterest = useSendInterest();
+  const requestPhoto = useRequestPhoto(profileId);
+  const acceptPhotoRequest = useAcceptPhotoRequest(profileId);
+  const rejectPhotoRequest = useRejectPhotoRequest(profileId);
+  const blockUser = useBlockUser();
+
+  const onBlock = () => {
+    if (!detail) return;
+    Alert.alert('Block this user?', 'Are you sure you want to block this user?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Block',
+        style: 'destructive',
+        onPress: () =>
+          blockUser.mutate(profileId, {
+            onSuccess: () => {
+              showToast(`${detail.name} has been blocked.`);
+              navigation.goBack();
+            },
+            onError: () => showToast('Could not block this user. Please try again.'),
+          }),
+      },
+    ]);
+  };
 
   if (isLoading || !detail) {
     return (
@@ -64,7 +94,13 @@ export function ProfileDetailScreen() {
     ? 'Notified automatically once contact is shared.'
     : 'Kept on file; not notified in this mode.';
 
+  // §8.4 — the existing subscribed+accepted gate (`locked`/`lockMessage`, unchanged) now only
+  // controls whether "Request Photo" is offered at all; the backend's own "never leak it in the
+  // JSON" discipline means `photoUrl` is null unless BOTH that gate and a separately-accepted
+  // PhotoAccessRequest are true, so treat "no photoUrl" as locked regardless of the old gate.
   const locked = !!detail.locked;
+  const photoUnlocked = !locked && !!detail.photoUrl;
+  const photoAccessStatus = detail.photoAccessStatus ?? 'none';
 
   const onSendInterest = () => {
     sendInterest.mutate(profileId, {
@@ -80,16 +116,20 @@ export function ProfileDetailScreen() {
 
   return (
     <Screen>
-      <Header title="Profile" onBack={() => navigation.goBack()} />
+      <Header
+        title="Profile"
+        onBack={() => navigation.goBack()}
+        right={<Button title="Block" variant="text" onPress={onBlock} />}
+      />
       <ScrollView>
         <View style={styles.photoArea}>
-          {!locked && detail.photoUrl ? (
+          {photoUnlocked ? (
             <Image source={{ uri: resolvePhotoUrl(detail.photoUrl)! }} style={styles.photoImage} />
           ) : (
             <PlaceholderPhoto
               width="100%"
               height={260}
-              locked={locked}
+              locked
               intensity={45}
               iconSize={26}
               lockMessage={detail.lockMessage}
@@ -113,6 +153,62 @@ export function ProfileDetailScreen() {
               ))}
             </View>
           </View>
+
+          {/* §8.4 — explicit photo consent, on top of (not instead of) the subscribed+accepted
+              gate above. "Request Photo" only ever appears once that gate is satisfied. */}
+          {!locked && !photoUnlocked ? (
+            <View style={styles.photoAccessBox}>
+              <Text style={styles.fieldLabel}>Profile photo</Text>
+              {photoAccessStatus === 'pending' ? (
+                <Text style={[styles.pendingText, { marginTop: 6 }]}>Photo request sent — awaiting response.</Text>
+              ) : (
+                <>
+                  <Text style={[styles.contactNote, { marginTop: 4, marginBottom: 10 }]}>
+                    {photoAccessStatus === 'rejected'
+                      ? `${detail.name} declined your last request to view their photo.`
+                      : `${detail.name}'s photo stays hidden until they approve your request to view it.`}
+                  </Text>
+                  <Button
+                    title={photoAccessStatus === 'rejected' ? 'Request again' : 'Request photo'}
+                    variant="outline"
+                    onPress={() =>
+                      requestPhoto.mutate(undefined, {
+                        onError: () => showToast('Could not send a photo request. Please try again.'),
+                      })
+                    }
+                    loading={requestPhoto.isPending}
+                  />
+                </>
+              )}
+            </View>
+          ) : null}
+
+          {detail.incomingPhotoRequest?.status === 'pending' ? (
+            <View style={styles.photoAccessBox}>
+              <Text style={styles.pendingText}>{detail.name} has requested to view your profile photo.</Text>
+              <View style={[styles.actions, { marginTop: 10 }]}>
+                <Button
+                  title="Accept"
+                  variant="small-primary"
+                  onPress={() =>
+                    acceptPhotoRequest.mutate(detail.incomingPhotoRequest!.id, {
+                      onSuccess: () => showToast('Photo request accepted.'),
+                      onError: () => showToast('Could not accept this request. Please try again.'),
+                    })
+                  }
+                />
+                <Button
+                  title="Reject"
+                  variant="small-outline"
+                  onPress={() =>
+                    rejectPhotoRequest.mutate(detail.incomingPhotoRequest!.id, {
+                      onError: () => showToast('Could not reject this request. Please try again.'),
+                    })
+                  }
+                />
+              </View>
+            </View>
+          ) : null}
 
           {detailFields.map((f) => (
             <View key={f.label} style={styles.fieldRow}>
@@ -292,5 +388,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.extraBold,
     fontSize: 14,
     color: colors.muted,
+  },
+  photoAccessBox: {
+    padding: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 6,
   },
 });

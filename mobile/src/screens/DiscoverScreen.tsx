@@ -51,10 +51,7 @@ export function DiscoverScreen() {
 
   return (
     <Screen edges={['top']}>
-      <TabHeader
-        title={tabStrings(lang).discover}
-        onOpenNotification={(candidateId) => navigation.navigate('ProfileDetail', { profileId: candidateId, origin: 'notification' })}
-      />
+      <TabHeader title={tabStrings(lang).discover} />
       <Text style={styles.subtitle}>
         Showing {feedGenderLabel} near you, ranked by compatibility · photos and contact stay private until a mutual
         interest is accepted

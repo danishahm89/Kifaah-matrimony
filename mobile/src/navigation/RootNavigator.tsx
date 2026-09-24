@@ -58,7 +58,16 @@ export function RootNavigator() {
     );
   }
 
-  const onboarded = !!token && !!me?.profile?.wali;
+  // CONTRACT.md §8.7 — switches on the backend-computed `profileComplete` instead of the old
+  // frontend-only `!!profile.wali` check. Falls back to the same formula client-side
+  // (`!!profile?.name && profile?.age != null && (gender !== 'bride' || !!profile?.wali)`) when
+  // `profileComplete` is absent from the response, so this keeps working against a backend
+  // snapshot that hasn't landed the field yet rather than trapping every user in onboarding.
+  const fallbackComplete =
+    !!me?.profile?.name &&
+    me?.profile?.age != null &&
+    (me?.user?.gender !== 'bride' || !!me?.profile?.wali);
+  const onboarded = !!token && (me?.profileComplete ?? fallbackComplete);
   if (onboarded) return <MainStack />;
 
   return <AuthStack initialRoute={token ? 'ShariahQA' : 'Welcome'} />;
