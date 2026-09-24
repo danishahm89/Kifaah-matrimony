@@ -77,12 +77,15 @@ export function ShariahQAScreen() {
           />
         </View>
 
+        {gender !== 'groom' && (
         <View style={styles.noticeBox}>
           <ShieldIcon />
           <Text style={styles.noticeText}>
             A wali (guardian) is required to be involved before contact is exchanged. This is fixed, not optional.
           </Text>
         </View>
+        )}
+        {gender !== 'groom' && (
         <View>
           <FieldLabel>Wali / guardian's name</FieldLabel>
           <TextField
@@ -95,6 +98,7 @@ export function ShariahQAScreen() {
           />
           {waliError ? <Text style={styles.error}>{waliError}</Text> : null}
         </View>
+        )}
 
         <View>
           <FieldLabel>Fasting (Ramadan & voluntary)</FieldLabel>
@@ -126,7 +130,7 @@ export function ShariahQAScreen() {
               // A wali is fixed, not optional (per the notice above), and the backend
               // rejects an explicit blank with a bare "invalid_input" — catch it here
               // with a message that says what to do, instead of letting that reach the user.
-              if (!draft.wali || !draft.wali.trim()) {
+              if (gender !== 'groom' && (!draft.wali || !draft.wali.trim())) {
                 setWaliError("Please add your wali's (guardian's) name to continue.");
                 return;
               }
