@@ -1,33 +1,74 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import {
+  Animated,
+  Modal,
+  FlatList,
+  TouchableOpacity,
+  Text,
+  View,
+  TextInput,
+  StyleSheet,
+  Platform,
+  Pressable,
+} from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { Button } from '../components/Button';
-import { TextField } from '../components/TextField';
 import { FieldLabel } from '../components/FieldLabel';
 import { colors, fonts } from '../theme/tokens';
 import { useSendOtp, useVerifyOtp } from '../api/hooks/useAuth';
 import { ApiError } from '../api/client';
 import type { Gender } from '../types';
+import { useTheme } from '../theme/ThemeContext';
+import { KifaahLogo } from '../components/KifaahLogo';
 
 type Mode = 'pick' | 'auth';
 type AuthMode = 'signup' | 'login';
 
-// Backend error codes (CONTRACT.md §7) mapped to copy a user can act on, rather than
-// showing the raw code (e.g. "gender_required", "invalid_code") as-is.
+const COUNTRIES = [
+  { name: 'India', code: '+91', flag: '🇮🇳' },
+  { name: 'Pakistan', code: '+92', flag: '🇵🇰' },
+  { name: 'Bangladesh', code: '+880', flag: '🇧🇩' },
+  { name: 'Saudi Arabia', code: '+966', flag: '🇸🇦' },
+  { name: 'United Arab Emirates', code: '+971', flag: '🇦🇪' },
+  { name: 'United Kingdom', code: '+44', flag: '🇬🇧' },
+  { name: 'United States', code: '+1', flag: '🇺🇸' },
+  { name: 'Canada', code: '+1', flag: '🇨🇦' },
+  { name: 'Australia', code: '+61', flag: '🇦🇺' },
+  { name: 'Malaysia', code: '+60', flag: '🇲🇾' },
+  { name: 'Indonesia', code: '+62', flag: '🇮🇩' },
+  { name: 'Turkey', code: '+90', flag: '🇹🇷' },
+  { name: 'Egypt', code: '+20', flag: '🇪🇬' },
+  { name: 'Qatar', code: '+974', flag: '🇶🇦' },
+  { name: 'Kuwait', code: '+965', flag: '🇰🇼' },
+  { name: 'Bahrain', code: '+973', flag: '🇧🇭' },
+  { name: 'Oman', code: '+968', flag: '🇴🇲' },
+  { name: 'Jordan', code: '+962', flag: '🇯🇴' },
+  { name: 'Morocco', code: '+212', flag: '🇲🇦' },
+  { name: 'Tunisia', code: '+216', flag: '🇹🇳' },
+  { name: 'Germany', code: '+49', flag: '🇩🇪' },
+  { name: 'France', code: '+33', flag: '🇫🇷' },
+  { name: 'Netherlands', code: '+31', flag: '🇳🇱' },
+  { name: 'Sweden', code: '+46', flag: '🇸🇪' },
+  { name: 'Norway', code: '+47', flag: '🇳🇴' },
+  { name: 'Denmark', code: '+45', flag: '🇩🇰' },
+  { name: 'South Africa', code: '+27', flag: '🇿🇦' },
+  { name: 'Nigeria', code: '+234', flag: '🇳🇬' },
+  { name: 'Ghana', code: '+233', flag: '🇬🇭' },
+  { name: 'Singapore', code: '+65', flag: '🇸🇬' },
+];
+
 function authErrorMessage(err: unknown): string | null {
   if (!(err instanceof ApiError)) return null;
   switch (err.body?.error) {
     case 'invalid_code':
-      return "That code didn't match. Please try again.";
+      return 'That code didn\'t match. Please try again.';
     case 'rate_limited':
       return 'Too many attempts — please wait a few minutes and try again.';
     case 'invalid_input':
       return 'Please check the number and try again.';
     case 'gender_required':
-      // Handled by a full reset in submitCode's onError — shouldn't normally be shown, but
-      // fall back to something sensible if it ever surfaces here.
       return "We couldn't find an account with that number.";
     default:
       return err.message;
@@ -35,14 +76,19 @@ function authErrorMessage(err: unknown): string | null {
 }
 
 export function WelcomeScreen() {
-  const [mode, setMode] = useState<Mode>('pick');
+  const { colors: themeColors, mode, toggle } = useTheme();
+  const [screenMode, setScreenMode] = useState<Mode>('pick');
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
+  React.useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
   }, [fadeAnim]);
+
   const [authMode, setAuthMode] = useState<AuthMode>('signup');
   const [gender, setGender] = useState<Gender | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
@@ -66,7 +112,7 @@ export function WelcomeScreen() {
     setAuthMode('signup');
     setNotice(null);
     resetAuthForm();
-    setMode('auth');
+    setScreenMode('auth');
   };
 
   const startLogin = () => {
@@ -74,41 +120,29 @@ export function WelcomeScreen() {
     setAuthMode('login');
     setNotice(null);
     resetAuthForm();
-    setMode('auth');
+    setScreenMode('auth');
   };
 
   const goBack = () => {
-    if (otpSent) {
-      setOtpSent(false);
-      setCode('');
-      verifyOtp.reset();
-    } else {
-      setMode('pick');
-    }
+    setScreenMode('pick');
+    setNotice(null);
+    resetAuthForm();
   };
 
+  const fullPhone = selectedCountry.code + phone.trim();
+
   const submitPhone = () => {
-    const trimmed = phone.trim();
-    if (!trimmed) return;
-    sendOtp.mutate(trimmed, { onSuccess: () => setOtpSent(true) });
+    sendOtp.mutate(fullPhone, { onSuccess: () => setOtpSent(true) });
   };
 
   const submitCode = () => {
-    const trimmed = code.trim();
-    if (!trimmed) return;
-    // Only signups (an "I am a..." pick was made) send `gender` — the backend requires it to
-    // create a brand-new account and ignores it for an existing one (CONTRACT.md §7.2).
     verifyOtp.mutate(
-      { phone: phone.trim(), code: trimmed, gender: authMode === 'signup' ? gender ?? undefined : undefined },
+      { phone: fullPhone, code: code.trim(), ...(authMode === 'signup' && gender ? { gender } : {}) },
       {
         onError: (err) => {
-          // "Log in" was used on a number with no account yet. The code the user just entered
-          // is already consumed (OTP codes are single-use once accepted server-side), so there's
-          // no code left to retry with — send them back to pick a role and start over with a
-          // fresh code, rather than leaving them stuck on a screen where "Verify" can't work.
           if (err instanceof ApiError && err.body?.error === 'gender_required') {
             resetAuthForm();
-            setMode('pick');
+            setScreenMode('pick');
             setNotice("We couldn't find an account with that number — choose \"I am a...\" below to sign up.");
           }
         },
@@ -116,11 +150,27 @@ export function WelcomeScreen() {
     );
   };
 
+  const filteredCountries = COUNTRIES.filter(c =>
+    c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+    c.code.includes(countrySearch)
+  );
+
   const headerTitle = otpSent ? 'Enter code' : authMode === 'signup' ? 'Verify your number' : 'Log in';
+
+  const isDark = mode === 'dark';
 
   return (
     <Screen>
-      {mode === 'auth' ? <Header title={headerTitle} onBack={goBack} /> : null}
+      {/* Dark/Light toggle */}
+      <Pressable
+        style={[styles.themeToggle, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
+        onPress={toggle}
+      >
+        <Text style={{ fontSize: 18 }}>{isDark ? '☀️' : '🌙'}</Text>
+      </Pressable>
+
+      {screenMode === 'auth' ? <Header title={headerTitle} onBack={goBack} /> : null}
+
       <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -128,130 +178,260 @@ export function WelcomeScreen() {
         extraScrollHeight={24}
         keyboardOpeningTime={0}
       >
-          {mode === 'pick' ? (
-            <>
-              <Animated.View style={[styles.brandBand, { opacity: fadeAnim }]}>
-                <Text style={styles.brandEyebrow}>ISLAMIC MATRIMONY  ·  SHARIAH-GUIDED</Text>
-                <Text style={styles.brand}>KIFAAH</Text>
-                <View style={styles.rule} />
-                <Text style={styles.intro}>
-                  A matrimony app for the Muslim community — built around Shariah etiquette: photos stay blurred,
-                  contact details stay hidden, and every profile is guardian-aware, until both sides agree to connect.
-                </Text>
-              </Animated.View>
-              {notice ? <Text style={styles.error}>{notice}</Text> : null}
-              <Text style={styles.eyebrow}>I am a</Text>
-              <Button title="Brother, looking for a sister" variant="surface" onPress={() => pick('groom')} />
-              <Button title="Sister, looking for a brother" variant="surface" onPress={() => pick('bride')} />
-              <Button title="Already have an account? Log in" variant="text" onPress={startLogin} />
-            </>
-          ) : !otpSent ? (
-            <View style={styles.authForm}>
+        {screenMode === 'pick' ? (
+          <>
+            <Animated.View style={[styles.brandBand, { opacity: fadeAnim }]}>
+              {/* Logo */}
+              <View style={styles.logoWrap}>
+                <KifaahLogo size={88} />
+              </View>
+              <Text style={[styles.brand, { color: themeColors.ink }]}>KIFAAH</Text>
+              <View style={[styles.rule, { backgroundColor: themeColors.accent }]} />
+              <Text style={[styles.eyebrow, { color: themeColors.primary }]}>
+                ISLAMIC MATRIMONY · SHARIAH-GUIDED
+              </Text>
+              <Text style={[styles.intro, { color: themeColors.muted }]}>
+                A matrimony app for the Muslim community — built around Shariah etiquette:
+                photos stay blurred, contact details stay hidden, and every profile is
+                guardian-aware, until both sides agree to connect.
+              </Text>
+            </Animated.View>
+
+            {notice ? <Text style={[styles.error, { color: themeColors.red }]}>{notice}</Text> : null}
+
+            <Text style={[styles.pickLabel, { color: themeColors.muted }]}>I AM A</Text>
+
+            <Pressable
+              style={[styles.roleCard, { backgroundColor: themeColors.bgCard, borderColor: themeColors.primary, shadowColor: themeColors.shadow }]}
+              onPress={() => pick('groom')}
+            >
+              <Text style={styles.roleEmoji}>🤵</Text>
               <View>
-                <FieldLabel>Phone number</FieldLabel>
-                <TextField
+                <Text style={[styles.roleTitle, { color: themeColors.primary }]}>Brother</Text>
+                <Text style={[styles.roleSubtitle, { color: themeColors.muted }]}>Looking for a sister</Text>
+              </View>
+              <Text style={[styles.roleArrow, { color: themeColors.primary }]}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.roleCard, { backgroundColor: themeColors.bgCard, borderColor: themeColors.accent, shadowColor: themeColors.shadow }]}
+              onPress={() => pick('bride')}
+            >
+              <Text style={styles.roleEmoji}>👰</Text>
+              <View>
+                <Text style={[styles.roleTitle, { color: themeColors.accent }]}>Sister</Text>
+                <Text style={[styles.roleSubtitle, { color: themeColors.muted }]}>Looking for a brother</Text>
+              </View>
+              <Text style={[styles.roleArrow, { color: themeColors.accent }]}>›</Text>
+            </Pressable>
+
+            <Button
+              title="Already have an account? Log in"
+              variant="text"
+              onPress={startLogin}
+            />
+          </>
+        ) : !otpSent ? (
+          <View style={styles.authForm}>
+            <Text style={[styles.authHint, { color: themeColors.muted }]}>
+              Enter your mobile number. We'll send you a 6-digit code.
+            </Text>
+
+            {/* Country picker */}
+            <View style={styles.fieldWrap}>
+              <Text style={[styles.fieldLabel, { color: themeColors.muted }]}>COUNTRY</Text>
+              <Pressable
+                style={[styles.countryBtn, { backgroundColor: themeColors.inputBg, borderColor: themeColors.borderStrong }]}
+                onPress={() => setShowCountryPicker(true)}
+              >
+                <Text style={styles.countryFlag}>{selectedCountry.flag}</Text>
+                <Text style={[styles.countryName, { color: themeColors.ink }]}>
+                  {selectedCountry.name}
+                </Text>
+                <Text style={[styles.countryCode, { color: themeColors.primary }]}>
+                  {selectedCountry.code}
+                </Text>
+                <Text style={[styles.countryArrow, { color: themeColors.muted }]}>▾</Text>
+              </Pressable>
+            </View>
+
+            {/* Phone number input */}
+            <View style={styles.fieldWrap}>
+              <Text style={[styles.fieldLabel, { color: themeColors.muted }]}>MOBILE NUMBER</Text>
+              <View style={[styles.phoneRow, { backgroundColor: themeColors.inputBg, borderColor: themeColors.borderStrong }]}>
+                <Text style={[styles.phonePrefix, { color: themeColors.primary }]}>
+                  {selectedCountry.code}
+                </Text>
+                <TextInput
+                  style={[styles.phoneInput, { color: themeColors.ink }]}
                   value={phone}
-                  onChangeText={setPhone}
-                  placeholder="+919812345678"
+                  onChangeText={(t) => {
+                    const digits = t.replace(/\D/g, '').slice(0, 10);
+                    setPhone(digits);
+                  }}
+                  placeholder="10-digit number"
+                  placeholderTextColor={themeColors.subtle}
                   autoCapitalize="none"
                   keyboardType="phone-pad"
                   autoComplete="tel"
                   textContentType="telephoneNumber"
+                  maxLength={10}
                 />
-                <Text style={styles.hint}>Include your country code. We'll text you a 6-digit code.</Text>
+                <Text style={[styles.phoneCount, { color: themeColors.subtle }]}>
+                  {phone.length}/10
+                </Text>
               </View>
-              {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
-              <Button title="Send code" onPress={submitPhone} loading={pending} disabled={phone.trim().length < 8} />
             </View>
-          ) : (
-            <View style={styles.authForm}>
-              <Text style={styles.hint}>Enter the code sent to {phone.trim()}.</Text>
-              <View>
-                <FieldLabel>6-digit code</FieldLabel>
-                <TextField
-                  value={code}
-                  onChangeText={setCode}
-                  placeholder="123456"
-                  keyboardType="number-pad"
-                  autoComplete="one-time-code"
-                  textContentType="oneTimeCode"
-                  maxLength={6}
-                />
-              </View>
-              {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
-              <Button title="Verify" onPress={submitCode} loading={pending} disabled={code.trim().length !== 6} />
-              <Button
-                title="Resend code"
-                variant="text"
-                onPress={() => sendOtp.mutate(phone.trim())}
-                disabled={pending}
+
+            {errorMsg ? <Text style={[styles.error, { color: themeColors.red }]}>{errorMsg}</Text> : null}
+
+            <Button
+              title="Send code"
+              onPress={submitPhone}
+              loading={pending}
+              disabled={phone.trim().length !== 10}
+            />
+          </View>
+        ) : (
+          <View style={styles.authForm}>
+            <Text style={[styles.authHint, { color: themeColors.muted }]}>
+              Enter the code sent to {selectedCountry.code + phone.trim()}.
+            </Text>
+            <View style={styles.fieldWrap}>
+              <Text style={[styles.fieldLabel, { color: themeColors.muted }]}>6-DIGIT CODE</Text>
+              <TextInput
+                style={[styles.codeInput, { color: themeColors.ink, backgroundColor: themeColors.inputBg, borderColor: themeColors.borderStrong }]}
+                value={code}
+                onChangeText={setCode}
+                placeholder="123456"
+                placeholderTextColor={themeColors.subtle}
+                keyboardType="number-pad"
+                autoComplete="one-time-code"
+                textContentType="oneTimeCode"
+                maxLength={6}
               />
             </View>
-          )}
+            {errorMsg ? <Text style={[styles.error, { color: themeColors.red }]}>{errorMsg}</Text> : null}
+            <Button title="Verify" onPress={submitCode} loading={pending} disabled={code.trim().length !== 6} />
+            <Button
+              title="Resend code"
+              variant="text"
+              onPress={() => sendOtp.mutate(fullPhone)}
+              disabled={pending}
+            />
+          </View>
+        )}
       </KeyboardAwareScrollView>
+
+      {/* Country Picker Modal */}
+      <Modal visible={showCountryPicker} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.modalWrap, { backgroundColor: themeColors.bg }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: themeColors.border }]}>
+            <Text style={[styles.modalTitle, { color: themeColors.ink }]}>Select Country</Text>
+            <Pressable onPress={() => { setShowCountryPicker(false); setCountrySearch(''); }}>
+              <Text style={[styles.modalClose, { color: themeColors.primary }]}>Done</Text>
+            </Pressable>
+          </View>
+          <TextInput
+            style={[styles.searchInput, { color: themeColors.ink, backgroundColor: themeColors.inputBg, borderColor: themeColors.border }]}
+            value={countrySearch}
+            onChangeText={setCountrySearch}
+            placeholder="Search country..."
+            placeholderTextColor={themeColors.subtle}
+          />
+          <FlatList
+            data={filteredCountries}
+            keyExtractor={(item) => item.name + item.code}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[
+                  styles.countryItem,
+                  { borderBottomColor: themeColors.border },
+                  selectedCountry.name === item.name && selectedCountry.code === item.code
+                    ? { backgroundColor: themeColors.greenBg }
+                    : {},
+                ]}
+                onPress={() => {
+                  setSelectedCountry(item);
+                  setShowCountryPicker(false);
+                  setCountrySearch('');
+                }}
+              >
+                <Text style={styles.countryFlag}>{item.flag}</Text>
+                <Text style={[styles.countryItemName, { color: themeColors.ink }]}>{item.name}</Text>
+                <Text style={[styles.countryItemCode, { color: themeColors.primary }]}>{item.code}</Text>
+              </Pressable>
+            )}
+          />
+        </View>
+      </Modal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    padding: 24,
-    paddingTop: 40,
-    paddingBottom: 32,
-    gap: 20,
+  scroll: { padding: 24, paddingTop: 20, paddingBottom: 48, flexGrow: 1 },
+  themeToggle: {
+    position: 'absolute', top: Platform.OS === 'ios' ? 52 : 12, right: 16,
+    zIndex: 100, width: 38, height: 38, borderRadius: 19,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, elevation: 3, shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
   },
-  brandBand: {
-    marginHorizontal: -24,
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 24,
-    gap: 10,
-    backgroundColor: colors.greenBg,
+  brandBand: { marginBottom: 32 },
+  logoWrap: { alignItems: 'center', marginBottom: 16, marginTop: 8 },
+  brand: { fontFamily: fonts.extraBold, fontSize: 32, letterSpacing: -0.5 },
+  rule: { height: 2, width: 56, marginTop: 6, marginBottom: 8 },
+  eyebrow: { fontFamily: fonts.regular, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
+  intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 22 },
+  pickLabel: { fontFamily: fonts.semiBold, fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 },
+  roleCard: {
+    flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 12,
+    borderRadius: 12, borderWidth: 1.5,
+    shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
-  brandEyebrow: {
-    fontFamily: fonts.semiBold,
-    fontSize: 11,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.greenText,
+  roleEmoji: { fontSize: 28, marginRight: 14 },
+  roleTitle: { fontFamily: fonts.semiBold, fontSize: 17 },
+  roleSubtitle: { fontFamily: fonts.regular, fontSize: 13, marginTop: 2 },
+  roleArrow: { marginLeft: 'auto', fontSize: 24, fontWeight: '300' },
+  authForm: { gap: 16 },
+  authHint: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 22, marginBottom: 4 },
+  fieldWrap: { gap: 6 },
+  fieldLabel: { fontFamily: fonts.semiBold, fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase' },
+  countryBtn: {
+    flexDirection: 'row', alignItems: 'center', minHeight: 48,
+    paddingHorizontal: 12, borderRadius: 10, borderWidth: 1.5,
   },
-  brand: {
-    fontFamily: fonts.extraBold,
-    fontSize: 32,
-    letterSpacing: -0.5,
-    color: colors.ink,
+  countryFlag: { fontSize: 22, marginRight: 10 },
+  countryName: { fontFamily: fonts.regular, fontSize: 15, flex: 1 },
+  countryCode: { fontFamily: fonts.semiBold, fontSize: 15, marginRight: 6 },
+  countryArrow: { fontSize: 14 },
+  phoneRow: {
+    flexDirection: 'row', alignItems: 'center', minHeight: 48,
+    paddingHorizontal: 12, borderRadius: 10, borderWidth: 1.5,
   },
-  rule: {
-    height: 2,
-    width: 56,
-    backgroundColor: colors.red,
+  phonePrefix: { fontFamily: fonts.semiBold, fontSize: 16, marginRight: 8 },
+  phoneInput: { flex: 1, fontFamily: fonts.regular, fontSize: 16, paddingVertical: 8 },
+  phoneCount: { fontFamily: fonts.regular, fontSize: 12 },
+  codeInput: {
+    minHeight: 48, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1.5,
+    fontFamily: fonts.regular, fontSize: 20, letterSpacing: 6, textAlign: 'center',
   },
-  intro: {
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    lineHeight: 23,
-    color: '#444141',
+  error: { fontFamily: fonts.semiBold, fontSize: 13 },
+  modalWrap: { flex: 1 },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 16, borderBottomWidth: 1,
   },
-  eyebrow: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.muted,
-    marginTop: 4,
+  modalTitle: { fontFamily: fonts.semiBold, fontSize: 18 },
+  modalClose: { fontFamily: fonts.semiBold, fontSize: 16 },
+  searchInput: {
+    margin: 12, paddingHorizontal: 12, paddingVertical: 10,
+    borderRadius: 8, borderWidth: 1, fontFamily: fonts.regular, fontSize: 15,
   },
-  authForm: {
-    gap: 16,
+  countryItem: {
+    flexDirection: 'row', alignItems: 'center', padding: 14,
+    paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  hint: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 6,
-  },
-  error: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-    color: colors.redDark,
-  },
+  countryItemName: { fontFamily: fonts.regular, fontSize: 15, flex: 1, marginLeft: 4 },
+  countryItemCode: { fontFamily: fonts.semiBold, fontSize: 14 },
 });

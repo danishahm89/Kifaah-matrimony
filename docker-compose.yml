@@ -59,6 +59,31 @@ services:
       - default
       - n8n_default
 
+  web:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./mobile/dist:/usr/share/nginx/html:ro
+      - ./nginx-web.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - traefik.enable=true
+      # Router for Hostinger subdomain (cert issued immediately)
+      - traefik.http.routers.kifaah-hostinger.rule=Host(`kifaah-web.srv1164487.hstgr.cloud`)
+      - traefik.http.routers.kifaah-hostinger.tls=true
+      - traefik.http.routers.kifaah-hostinger.entrypoints=web,websecure
+      - traefik.http.routers.kifaah-hostinger.tls.certresolver=mytlschallenge
+      - traefik.http.routers.kifaah-hostinger.service=kifaah-web
+      # Router for custom domain (cert issued after DNS A record is added)
+      - traefik.http.routers.kifaah-web.rule=Host(`kifaah.alzakwaantours.com`)
+      - traefik.http.routers.kifaah-web.tls=true
+      - traefik.http.routers.kifaah-web.entrypoints=web,websecure
+      - traefik.http.routers.kifaah-web.tls.certresolver=mytlschallenge
+      - traefik.http.services.kifaah-web.loadbalancer.server.port=80
+      - traefik.docker.network=n8n_default
+    networks:
+      - default
+      - n8n_default
+
 volumes:
   kifaah_postgres_data:
   kifaah_uploads:

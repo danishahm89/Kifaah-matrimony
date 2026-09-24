@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 
 interface Props {
   children: React.ReactNode;
@@ -10,8 +10,9 @@ interface Props {
 }
 
 export function Screen({ children, edges = ['top'], style }: Props) {
+  const { colors } = useTheme();
   return (
-    <SafeAreaView edges={edges} style={[styles.root, style]}>
+    <SafeAreaView edges={edges} style={[styles.root, { backgroundColor: colors.bg }, style]}>
       {children}
     </SafeAreaView>
   );
@@ -20,7 +21,6 @@ export function Screen({ children, edges = ['top'], style }: Props) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.bg,
   },
 });
 
@@ -31,6 +31,6 @@ export function ScrollScreenBody({ children, style }: { children: React.ReactNod
 const bodyStyles = StyleSheet.create({
   body: {
     padding: 20,
-    gap: 18,
+    gap: 10,
   },
 });

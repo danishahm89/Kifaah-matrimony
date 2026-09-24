@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, fonts } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
 import { BellIcon, GlobeIcon } from '../icons';
 import { useNotifications, useMarkNotificationsRead } from '../api/hooks/useNotifications';
 import { useConversations } from '../api/hooks/useChat';
@@ -31,6 +32,7 @@ export function TabHeader({ title }: Props) {
   const markRead = useMarkNotificationsRead();
   const toggleLang = useToggleLanguage();
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
+  const { colors: themeColors } = useTheme();
 
   const hasUnread = notifications.some((n) => !n.read);
 
@@ -55,42 +57,42 @@ export function TabHeader({ title }: Props) {
 
   return (
     <View>
-      <View style={styles.row}>
-        <Text style={styles.title}>{title}</Text>
+      <View style={[styles.row, { borderBottomColor: themeColors.border }]}>
+        <Text style={[styles.title, { color: themeColors.ink }]}>{title}</Text>
         <View style={styles.actions}>
-          <Pressable style={styles.iconBtn} onPress={openNotif}>
+          <Pressable style={[styles.iconBtn, { borderColor: themeColors.borderStrong }]} onPress={openNotif}>
             <BellIcon />
-            {hasUnread ? <View style={styles.dot} /> : null}
+            {hasUnread ? <View style={[styles.dot, { backgroundColor: themeColors.accent }]} /> : null}
           </Pressable>
           <Pressable
-            style={styles.langBtn}
+            style={[styles.langBtn, { borderColor: themeColors.borderStrong }]}
             onPress={() => toggleLang.mutate(lang === 'ur' ? 'en' : 'ur')}
           >
             <GlobeIcon size={13} />
-            <Text style={styles.langText}>{langToggleLabel(lang)}</Text>
+            <Text style={[styles.langText, { color: themeColors.ink }]}>{langToggleLabel(lang)}</Text>
           </Pressable>
         </View>
       </View>
 
       {notifOpen ? (
-        <View style={styles.panel}>
-          <View style={styles.panelHeader}>
-            <Text style={styles.panelTitle}>Notifications</Text>
+        <View style={[styles.panel, { backgroundColor: themeColors.bgCard, borderColor: themeColors.borderStrong }]}>
+          <View style={[styles.panelHeader, { borderBottomColor: themeColors.border }]}>
+            <Text style={[styles.panelTitle, { color: themeColors.ink }]}>Notifications</Text>
           </View>
           {notifications.length > 0 ? (
             <ScrollView style={styles.panelList}>
               {notifications.map((n) => (
-                <Pressable key={n.id} style={styles.notifRow} onPress={() => openNotification(n)}>
+                <Pressable key={n.id} style={[styles.notifRow, { borderBottomColor: themeColors.borderHairline }]} onPress={() => openNotification(n)}>
                   <View style={[styles.notifDot, n.read && styles.notifDotRead]} />
                   <View style={styles.notifBody}>
-                    <Text style={styles.notifTitle}>{n.title}</Text>
-                    <Text style={styles.notifText}>{n.message}</Text>
+                    <Text style={[styles.notifTitle, { color: themeColors.ink }]}>{n.title}</Text>
+                    <Text style={[styles.notifText, { color: themeColors.muted }]}>{n.message}</Text>
                   </View>
                 </Pressable>
               ))}
             </ScrollView>
           ) : (
-            <Text style={styles.empty}>No recommendations yet.</Text>
+            <Text style={[styles.empty, { color: themeColors.muted }]}>No recommendations yet.</Text>
           )}
         </View>
       ) : null}

@@ -18,6 +18,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { Toast } from './src/components/Toast';
 import { colors } from './src/theme/tokens';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
+import { ThemeProvider } from './src/theme/ThemeContext';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -50,15 +51,17 @@ export default function App() {
 
   return (
     <View style={styles.root} onLayout={onLayout}>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <NavigationContainer>
-            <RootNavigator />
-            <Toast />
-          </NavigationContainer>
-          <StatusBar style="dark" />
-        </SafeAreaProvider>
-      </QueryClientProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <NavigationContainer>
+              <RootNavigator />
+              <Toast />
+            </NavigationContainer>
+            <StatusBar style="dark" />
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
     </View>
   );
 }
