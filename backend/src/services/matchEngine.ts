@@ -1,7 +1,8 @@
 import { Gender, Profile } from "@prisma/client";
 import { prisma } from "../lib/prisma";
-import { sendPushToUser } from "../lib/push";
 import { appConfig } from "../lib/appConfig";
+import { blockedUserIdsFor } from "./blocks";
+import { createNotification } from "../lib/notifications";
 
 /**
  * Match score formula — CONTRACT.md §2, implemented exactly, do not deviate
@@ -68,6 +69,11 @@ export async function runMatchEngineForUser(userId: string, label: string) {
   for (const ir of existingInterests) {
     excluded.add(ir.fromUserId === userId ? ir.toUserId : ir.fromUserId);
   }
+  // Blocked pairs (either direction) excluded at the query level, same as
+  // discover (CONTRACT §8.3).
+  for (const blockedId of await blockedUserIdsFor(userId)) {
+    excluded.add(blockedId);
+  }
 
   const candidates = await prisma.user.findMany({
     where: {
@@ -88,21 +94,21 @@ export async function runMatchEngineForUser(userId: string, label: string) {
   const created = [];
   for (const m of scored) {
     const name = m.candidate.profile?.name || "A member";
-    const notification = await prisma.notification.create({
-      data: {
-        userId,
-        candidateId: m.candidate.id,
-        score: m.score,
-        label,
-        text: `${name} is a ${m.score}% match for you.`,
-      },
+    const message = `${name} is a ${m.score}% match for you.`;
+    // Port to the generalized Notification shape (CONTRACT §8.1/§8.6):
+    // type: "match_suggestion", title: "New match", message unchanged,
+    // referenceId: candidateId. `label` (e.g. "New signup match"/"Weekly
+    // refresh") is no longer stored as its own column — it was only ever
+    // used to log which run produced a match, not surfaced to the client.
+    await createNotification({
+      userId,
+      type: "match_suggestion",
+      title: "New match",
+      message,
+      referenceId: m.candidate.id,
+      push: true,
     });
-    created.push(notification);
-
-    sendPushToUser(userId, "New match", notification.text, {
-      type: "new_match",
-      candidateId: m.candidate.id,
-    }).catch(() => {});
+    created.push({ candidateId: m.candidate.id, score: m.score, label, text: message });
   }
 
   return created;

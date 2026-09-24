@@ -2,7 +2,9 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
 import { isSubscriptionActive } from "../services/visibility";
-import { sendPushToUser } from "../lib/push";
+import { isBlockedPair, blockedUserIdsFor } from "../services/blocks";
+import { getOrCreateConversation } from "../services/conversations";
+import { createNotification } from "../lib/notifications";
 
 const router = Router();
 
@@ -17,6 +19,11 @@ router.post("/:profileId", requireAuth, async (req: AuthedRequest, res) => {
   const target = await prisma.user.findUnique({ where: { id: toUserId } });
   if (!target) {
     return res.status(404).json({ error: "not_found" });
+  }
+
+  // CONTRACT §8.3 — blocked in either direction.
+  if (await isBlockedPair(fromUserId, toUserId)) {
+    return res.status(403).json({ error: "blocked" });
   }
 
   const subscribed = await isSubscriptionActive(fromUserId);
@@ -40,18 +47,28 @@ router.post("/:profileId", requireAuth, async (req: AuthedRequest, res) => {
     data: { fromUserId, toUserId },
   });
 
-  const fromProfile = await prisma.profile.findUnique({ where: { userId: fromUserId } });
-  sendPushToUser(toUserId, "New interest", `${fromProfile?.name || "Someone"} sent you an interest.`, {
-    type: "interest_received",
-    interestId: interest.id,
-  }).catch(() => {});
+  await createNotification({
+    userId: toUserId,
+    type: "new_request",
+    title: "New connection request",
+    message: "You have received a new connection request.",
+    referenceId: fromUserId,
+    fromUserId,
+    push: true,
+  });
 
   res.status(201).json(interest);
 });
 
 router.get("/sent", requireAuth, async (req: AuthedRequest, res) => {
+  const userId = req.userId!;
+  const blocked = await blockedUserIdsFor(userId);
+
   const rows = await prisma.interestRequest.findMany({
-    where: { fromUserId: req.userId! },
+    where: {
+      fromUserId: userId,
+      ...(blocked.length > 0 ? { toUserId: { notIn: blocked } } : {}),
+    },
     include: { toUser: { include: { profile: true } } },
     orderBy: { createdAt: "desc" },
   });
@@ -71,9 +88,20 @@ router.get("/sent", requireAuth, async (req: AuthedRequest, res) => {
   );
 });
 
+// CONTRACT §8.8 requirement-2 fix: only "pending" requests belong here now —
+// accepted ones surface via the extended GET /api/chats instead, so the
+// mobile Matches screen no longer shows Accept/Decline on an already-decided
+// request.
 router.get("/received", requireAuth, async (req: AuthedRequest, res) => {
+  const userId = req.userId!;
+  const blocked = await blockedUserIdsFor(userId);
+
   const rows = await prisma.interestRequest.findMany({
-    where: { toUserId: req.userId! },
+    where: {
+      toUserId: userId,
+      status: "pending",
+      ...(blocked.length > 0 ? { fromUserId: { notIn: blocked } } : {}),
+    },
     include: { fromUser: { include: { profile: true } } },
     orderBy: { createdAt: "desc" },
   });
@@ -103,13 +131,19 @@ router.post("/:id/accept", requireAuth, async (req: AuthedRequest, res) => {
     data: { status: "accepted" },
   });
 
+  // Conversation is created 1:1 with the accepted interest (CONTRACT §8.1/§8.2).
+  await getOrCreateConversation(updated.id);
+
   const toProfile = await prisma.profile.findUnique({ where: { userId: interest.toUserId } });
-  sendPushToUser(
-    interest.fromUserId,
-    "Interest accepted",
-    `${toProfile?.name || "Someone"} accepted your interest.`,
-    { type: "interest_accepted", interestId: interest.id }
-  ).catch(() => {});
+  await createNotification({
+    userId: interest.fromUserId,
+    type: "request_accepted",
+    title: "Request accepted",
+    message: `${toProfile?.name || "Someone"} accepted your connection request.`,
+    referenceId: interest.toUserId,
+    fromUserId: interest.toUserId,
+    push: true,
+  });
 
   res.json(updated);
 });

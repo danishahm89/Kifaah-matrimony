@@ -4,6 +4,10 @@ import { requireAuth, AuthedRequest } from "../middleware/auth";
 import { computeScore, oppositeGender } from "../services/matchEngine";
 import { getInterestStatus, isSubscriptionActive, isUnlocked, LOCK_MESSAGE } from "../services/visibility";
 import { writeAuditLog } from "../lib/audit";
+import { blockedUserIdsFor } from "../services/blocks";
+import { findConversationForUsers } from "../services/conversations";
+import { getPhotoAccessStatus, getIncomingPhotoRequest } from "../services/photoAccess";
+import { createNotification } from "../lib/notifications";
 
 const router = Router();
 
@@ -21,6 +25,12 @@ router.get("/discover", requireAuth, async (req: AuthedRequest, res) => {
   const excluded = new Set<string>([viewer.id]);
   for (const ir of existingInterests) {
     excluded.add(ir.fromUserId === viewer.id ? ir.toUserId : ir.fromUserId);
+  }
+  // Blocked pairs (either direction) are excluded at the query level below,
+  // not filtered from an already-fetched list (CONTRACT §8.3 — the most
+  // important enforcement point).
+  for (const blockedId of await blockedUserIdsFor(viewer.id)) {
+    excluded.add(blockedId);
   }
 
   const candidates = await prisma.user.findMany({
@@ -71,6 +81,13 @@ router.get("/profiles/:id", requireAuth, async (req: AuthedRequest, res) => {
   const interestStatus = await getInterestStatus(viewer.id, candidate.id);
   const viewerSubscribed = await isSubscriptionActive(viewer.id);
   const unlocked = isUnlocked(viewerSubscribed, interestStatus);
+
+  // CONTRACT §8.4 — photo reveal now additionally requires an *accepted*
+  // PhotoAccessRequest on top of the existing subscribed+accepted gate.
+  // Contact (phone/email) reveal is unchanged.
+  const photoAccessStatus = await getPhotoAccessStatus(viewer.id, candidate.id);
+  const photoUnlocked = unlocked && photoAccessStatus === "accepted";
+  const incomingPhotoRequest = await getIncomingPhotoRequest(viewer.id, candidate.id);
 
   if (unlocked) {
     // AuditLog write at the first moment contact unlocks for this
@@ -126,13 +143,71 @@ router.get("/profiles/:id", requireAuth, async (req: AuthedRequest, res) => {
     wali: p?.wali || "",
     score: computeScore(viewer.profile, candidate.profile),
     interestStatus,
-    photoUrl: unlocked ? p?.photoUrl ?? null : null,
+    photoUrl: photoUnlocked ? p?.photoUrl ?? null : null,
+    photoAccessStatus,
+    incomingPhotoRequest,
     contact: unlocked
       ? { phone: p?.phone ?? null, email: p?.contactEmail ?? null }
       : null,
     locked: !unlocked,
     lockMessage: unlocked ? null : LOCK_MESSAGE,
   });
+});
+
+// CONTRACT §8.4 — request the owner's consent to view their photo. Requires
+// the existing unlock prerequisite (subscribed && interest mutually
+// accepted) already, same discipline as the rest of the locking logic.
+router.post("/profiles/:id/photo-request", requireAuth, async (req: AuthedRequest, res) => {
+  const requesterId = req.userId!;
+  const ownerId = req.params.id;
+
+  if (requesterId === ownerId) {
+    return res.status(400).json({ error: "cannot_request_self" });
+  }
+
+  const owner = await prisma.user.findUnique({ where: { id: ownerId } });
+  if (!owner) return res.status(404).json({ error: "not_found" });
+
+  const interestStatus = await getInterestStatus(requesterId, ownerId);
+  const requesterSubscribed = await isSubscriptionActive(requesterId);
+  if (!isUnlocked(requesterSubscribed, interestStatus)) {
+    return res.status(403).json({ error: "unlock_required" });
+  }
+
+  const conversation = await findConversationForUsers(requesterId, ownerId);
+  if (!conversation) {
+    return res.status(403).json({ error: "unlock_required" });
+  }
+  // A CLOSED/BLOCKED/REOPEN_REQUESTED conversation shouldn't be able to spawn new consent
+  // requests — that would undermine close's whole point of resetting approvals (CONTRACT §8.2).
+  // Re-requesting is fine again once the conversation is reopened back to ACTIVE.
+  if (conversation.status !== "ACTIVE") {
+    return res.status(409).json({ error: "conversation_not_active" });
+  }
+
+  const existing = await prisma.photoAccessRequest.findUnique({
+    where: { conversationId_requesterId: { conversationId: conversation.id, requesterId } },
+  });
+  if (existing) {
+    return res.status(409).json({ error: "already_exists", status: existing.status });
+  }
+
+  const created = await prisma.photoAccessRequest.create({
+    data: { conversationId: conversation.id, requesterId, ownerId, status: "pending" },
+  });
+
+  const requesterProfile = await prisma.profile.findUnique({ where: { userId: requesterId } });
+  await createNotification({
+    userId: ownerId,
+    type: "photo_requested",
+    title: "Photo request",
+    message: `${requesterProfile?.name || "Someone"} has requested to view your profile photo.`,
+    referenceId: requesterId,
+    fromUserId: requesterId,
+    push: true,
+  });
+
+  res.status(201).json(created);
 });
 
 export default router;

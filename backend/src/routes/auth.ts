@@ -41,6 +41,20 @@ function publicUser(user: {
   };
 }
 
+// CONTRACT §8.7 — real backend enforcement of "wali optional for boys":
+// girls need a wali to be considered profile-complete, boys don't. Computed
+// server-side so the mobile RootNavigator can switch on this instead of the
+// frontend-only `!!profile.wali` check it used before.
+function computeProfileComplete(user: {
+  gender: string;
+  profile: { name: string; age: number | null; wali: string } | null;
+}): boolean {
+  const profile = user.profile;
+  if (!profile?.name || profile.age == null) return false;
+  if (user.gender === "BRIDE" && !profile.wali) return false;
+  return true;
+}
+
 const otpSendSchema = z.object({ phone: phoneSchema });
 
 router.post("/otp/send", otpSendLimiter, async (req, res) => {
@@ -219,6 +233,7 @@ router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
     user: publicUser(user),
     profile: user.profile,
     subscription: user.subscription,
+    profileComplete: computeProfileComplete(user),
   });
 });
 
