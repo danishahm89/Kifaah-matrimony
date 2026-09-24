@@ -401,3 +401,309 @@ so keep mobile testing at the unit level, not end-to-end.
 Backend seed script ports the prototype's 10 demo `PROFILES`, `PROFILE_EXTRA`, and `FAQS`
 constants verbatim (with placeholder emails/passwords for the demo accounts) so the app has
 realistic browsing content out of the box in dev. Real signups still work independently.
+
+## 8. Connection lifecycle v2 — blocking, photo/wali consent, close/reopen, notifications, mobile UX
+
+A second feature/hardening pass, additive to everything already built (§1–§7). **Preserve what
+exists** — the auth model, Prisma schema, route structure, React Query/Zustand patterns, design
+tokens, business rules already implemented — and extend it. Do not rewrite working code to make it
+"cleaner"; add the minimum needed to satisfy the rules below. Every new state transition must be
+enforced **server-side** — the client hiding a button is never sufficient on its own.
+
+### 8.1 New Prisma models (additive — nothing existing is removed)
+
+```
+enum ConversationStatus { ACTIVE CLOSED REOPEN_REQUESTED BLOCKED }
+
+Conversation
+  id                      String @id @default(cuid())
+  interestId              String @unique          // 1:1 with the InterestRequest it came from
+  interest                InterestRequest @relation(fields: [interestId], references: [id])
+  status                  ConversationStatus @default(ACTIVE)
+  closedAt                DateTime?
+  closedByUserId          String?
+  reopenRequestedByUserId String?
+  reopenRequestedAt       DateTime?
+  archivedAt              DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  @@index([status, closedAt])   // for the archive-sweep query
+
+BlockedUser
+  id          String @id @default(cuid())
+  blockerId   String
+  blockedId   String
+  createdAt   DateTime @default(now())
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])   // "who has blocked me" lookups
+
+PhotoAccessRequest
+  id             String @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  requesterId    String     // wants to see the photo
+  ownerId        String     // whose photo it is
+  status         String @default("pending")   // pending | accepted | rejected
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([conversationId, requesterId])
+
+WaliShare
+  id             String @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  sharedByUserId String        // must be the BRIDE-side participant (see §8.5)
+  accessToken    String @unique
+  revoked        Boolean @default(false)
+  createdAt      DateTime @default(now())
+  revokedAt      DateTime?
+  lastViewedAt   DateTime?
+
+SecurityEvent
+  id                 String @id @default(cuid())
+  userId             String     // the affected user (whose content was captured)
+  triggeredByUserId  String?    // who triggered it, when known
+  type               String     // "screenshot_detected" for now
+  conversationId     String?
+  platform           String?    // "ios" | "android" | "web"
+  createdAt          DateTime @default(now())
+```
+
+**`Notification` is generalized** (existing rows/consumers migrate, this is a breaking shape
+change to that one model — everything else is additive):
+```
+Notification
+  id          String @id @default(cuid())
+  userId      String
+  type        String    // match_suggestion | new_request | request_accepted | new_message |
+                         // photo_requested | photo_request_accepted | photo_request_rejected |
+                         // conversation_closed | reopen_requested | reopen_accepted |
+                         // reopen_rejected | screenshot_alert
+  title       String
+  message     String
+  referenceId String?   // candidateId / interestId / conversationId / the other user's id,
+                         // meaning depends on `type` — see §8.6
+  read        Boolean @default(false)
+  createdAt   DateTime @default(now())
+```
+Port the existing match-engine notification creation to this shape (`type: "match_suggestion"`,
+`title: "New match"`, `message` unchanged, `referenceId: candidateId`).
+
+**`Profile.wali`**: no schema change (already `String`, defaults to `""`) — only its *validation*
+becomes gender-conditional (§8.7).
+
+### 8.2 Conversation state machine — allowed transitions only
+
+```
+(created on interest accept) → ACTIVE
+ACTIVE           → CLOSED             (either participant closes it)
+ACTIVE           → BLOCKED            (either participant blocks the other)
+CLOSED           → REOPEN_REQUESTED   (either participant requests reopen)
+REOPEN_REQUESTED → ACTIVE             (the OTHER participant accepts)
+REOPEN_REQUESTED → CLOSED             (the other participant rejects, or the requester cancels)
+BLOCKED          → REOPEN_REQUESTED   (once unblocked — see §8.3 — same reopen flow as CLOSED;
+                                        blocking does NOT auto-restore ACTIVE)
+```
+Any other transition (e.g. `CLOSED → ACTIVE` directly, sending a message while `CLOSED`/`BLOCKED`,
+accepting a reopen the requester didn't initiate, a second `REOPEN_REQUESTED` while one is already
+pending) is rejected with `409 invalid_transition`. Wrap every transition in a
+`prisma.$transaction` that re-reads and checks the current status inside the transaction before
+writing, so two concurrent requests (e.g. both users closing at once, or an accept racing a
+decline) can't corrupt state — the loser of the race gets a clean `409`, not a silent double-apply.
+
+On close (any → CLOSED): reset the "approval cycle" — set every `PhotoAccessRequest` for that
+conversation back to a state where the requester must ask again (either delete the rows or add a
+`resetAt`/supersede them; either is fine, but a fresh `POST .../photo-request` after reopen must
+start from "none", not silently reuse an old acceptance) and revoke any active `WaliShare`
+(`revoked: true`). **Never delete `ChatMessage` history** — messages stay, only future sending and
+photo/wali access are gated by conversation status.
+
+### 8.3 Blocking
+
+- `POST /api/blocks/:userId` — block. `DELETE /api/blocks/:userId` — unblock. `GET /api/blocks` —
+  list blocked-by-me users (id, minimal display name/city, `createdAt`).
+- Blocking is symmetric in effect, asymmetric in record: only the blocker's row exists, but both
+  directions are excluded everywhere below (check `blockerId=me OR blockedId=me` against the other
+  party, i.e. "is there a BlockedUser row in either direction between us").
+- **Enforce at the query/middleware level, not by filtering results in the client**, in every one
+  of: `GET /api/discover` and the match-engine candidate pool (exclude both directions — this is
+  the most important one, cover it with an index-friendly query, not an in-memory filter over all
+  users), `POST /api/interests/:profileId` (403 `blocked` if either direction), `GET
+  /api/interests/sent|received` (drop rows where either direction is blocked), chat send/read
+  (403 `blocked`), notification creation (skip if either direction is blocked at the moment of
+  creation).
+- If a `Conversation` exists between the two, blocking transitions it to `BLOCKED` (§8.2) as part
+  of the same transaction as creating the `BlockedUser` row.
+- Unblocking removes the `BlockedUser` row but does **not** revive the conversation — it stays
+  `BLOCKED` until the normal reopen flow (§8.2) is used, and does not restore any prior
+  request/match eligibility beyond "the match engine may consider them again under its normal
+  rules" (i.e. no special-casing needed there — once unblocked, ordinary exclusion rules just no
+  longer apply to that pair).
+
+### 8.4 Explicit photo consent (in addition to, not instead of, the existing subscription gate)
+
+The existing rule (§2: photo/contact unlock at `subscribed && interestAccepted`) still gates
+**whether "Request Photo" is even offered** — it does not by itself reveal the photo anymore. Full
+rule for `photoUrl` appearing in a `GET /api/profiles/:id` response: `subscribed &&
+interestAccepted && PhotoAccessRequest{conversation, requester=viewer}.status === "accepted"`.
+Contact-detail (`phone`/`email`) reveal rules are **unchanged** — this section only affects the
+photo.
+
+- `POST /api/profiles/:id/photo-request` — 403 unless the existing unlock prerequisite is met, 409
+  if a request already exists for this conversation+requester (front-end should show its current
+  status instead of re-requesting); creates/reuses a `PhotoAccessRequest`, notifies the owner
+  (`photo_requested`, `"[Name] has requested to view your profile photo."`).
+- `POST /api/photo-requests/:id/accept` / `.../reject` — owner-only (403 otherwise), notifies the
+  requester (`photo_request_accepted` / `photo_request_rejected`).
+- `GET /api/profiles/:id` response gains `photoAccessStatus: "none"|"pending"|"accepted"|"rejected"`
+  next to `photoUrl` (which stays `null` unless truly unlocked, same "never leak it in the JSON"
+  discipline as the rest of the locking logic).
+
+### 8.5 Wali sharing — explicit, revocable, read-only
+
+Scope: initiator must be the **BRIDE**-side participant of the conversation (mirrors "girl's Wali"
+in the brief; the groom side has no wali-share affordance). This is a deliberate simplification
+versus building a full second authentication system for Wali accounts — the Wali does not get an
+app login; a long random bearer token in a link is the credential, and access is strictly
+read-only. Document this choice; don't build Wali accounts/participation, that's out of scope here.
+
+- `POST /api/chats/:userId/wali-share` (bride-side participant only) → creates a `WaliShare`,
+  returns `{ token, url }` (the mobile "Share Conversation with Wali" action surfaces this URL to
+  copy/send however the user likes — SMS, WhatsApp, etc., outside the app).
+- `DELETE /api/chats/:userId/wali-share` — revoke (idempotent).
+- `GET /api/chats/:userId/wali-share` — current status (`none`/`active`/`revoked`, `createdAt`) for
+  the sharer to see in-app.
+- `GET /api/wali/:token` — **unauthenticated** (no JWT — the token itself is the credential),
+  read-only: returns the conversation's messages and minimal participant names, 404 if the token
+  doesn't exist or is revoked. Update `lastViewedAt` on each successful read. Never expose this
+  conversation's data through any other unauthenticated route.
+
+### 8.6 Notifications — event → row mapping
+
+| Event | `type` | `title` example | `referenceId` | Also push? |
+|---|---|---|---|---|
+| New interest received | `new_request` | "New connection request" | sender's userId | yes |
+| Interest accepted | `request_accepted` | "Request accepted" | accepter's userId | yes |
+| Match engine surfaces a candidate | `match_suggestion` | "New match" | candidateId | yes (existing) |
+| New chat message | `new_message` | "New message" | sender's userId | yes (existing) |
+| Photo requested | `photo_requested` | "Photo request" | requester's userId | yes |
+| Photo request accepted/rejected | `photo_request_accepted`/`_rejected` | … | owner's userId | yes |
+| Conversation closed | `conversation_closed` | "Conversation closed" | other user's id | no (in-app only) |
+| Reopen requested | `reopen_requested` | "Reopen request" | requester's userId | yes |
+| Reopen accepted/rejected | `reopen_accepted`/`_rejected` | … | other user's id | yes |
+| Screenshot detected | `screenshot_alert` | "Security alert" | conversationId | yes |
+
+`message` text follows the brief's exact copy where given (e.g. `"You have received a new
+connection request."`, `"[Name] has requested to reopen your previous conversation."`). **Never
+put profile bio content in a notification body** — names are fine (already the existing pattern
+for matches), but not e.g. someone's "about me" text. Never create any notification between a
+blocked pair (§8.3).
+
+### 8.7 Wali optional for boys — real backend enforcement
+
+Today `wali` is only rejected if explicitly blanked (`wali_required` on an explicit empty string);
+there's no actual gate requiring it to ever be set, and the mobile app infers "onboarding done" by
+checking `!!profile.wali` client-side — which is exactly the kind of frontend-only gate the brief
+calls out as insufficient. Fix properly:
+
+- `GET /api/auth/me` gains a computed `profileComplete: boolean` field:
+  `!!profile?.name && profile?.age != null && (user.gender !== "BRIDE" || !!profile?.wali)`.
+  (Girls need a wali to be considered complete; boys don't.) Mobile's `RootNavigator` switches on
+  `profileComplete` instead of raw `wali` presence.
+- The `ShariahQAScreen`/`ProfileSetupScreen` wali notice copy ("required, not optional") must
+  become gender-conditional to match — still fixed/required for the bride side, genuinely optional
+  (skippable) for the groom side.
+
+### 8.8 Close / reopen — API surface
+
+Reusing the existing `userId`-keyed convention from `chats.ts` rather than introducing a parallel
+`conversationId`-keyed resource (preserve existing API shape/conventions per the brief):
+- `GET /api/chats` — extend the existing response with `conversationStatus`
+  (`active|closed|reopen_requested|blocked`) and `canMessage: boolean` per row. **Also stop
+  excluding accepted-but-not-both-subscribed pairs entirely** — currently an accepted interest
+  where one side isn't subscribed never appears here at all; that's requirement 9's "stale UI" bug
+  (accepted connections should be visible to both sides even before both are subscribed, they just
+  can't message yet). Include them with `canMessage: false` and a reason, instead of omitting them.
+- `POST /api/chats/:userId/close` — either participant, `ACTIVE|BLOCKED → CLOSED`, resets
+  photo/wali access per §8.2, notifies the other participant.
+- `POST /api/chats/:userId/reopen-request` — `CLOSED|BLOCKED → REOPEN_REQUESTED`, 409 if one is
+  already pending, notifies the other participant.
+- `POST /api/chats/:userId/reopen-request/accept` / `.../reject` — must be the **other**
+  participant (not the requester — 403 if the requester tries to accept their own request),
+  `REOPEN_REQUESTED → ACTIVE` or `→ CLOSED`, notifies the requester.
+- `GET /api/chats/:userId/messages` and `POST .../messages` — add the `CLOSED`/`BLOCKED` gate
+  (403 `conversation_not_active`) on top of the existing `canChat` check.
+
+### 8.9 Six-month archive job
+
+Extend the existing `node-cron` setup in `src/index.ts` with a second scheduled job (once daily is
+plenty — this doesn't need to run every minute): `UPDATE Conversation SET archivedAt = now() WHERE
+status = 'CLOSED' AND closedAt < now() - interval '6 months' AND archivedAt IS NULL`, using the
+`@@index([status, closedAt])` from §8.1 so it's a fast indexed scan, not a full table scan.
+Archived conversations: excluded from the default `GET /api/chats` list; reachable via `GET
+/api/chats?archived=true` (or a separate `GET /api/chats/archived` — either is fine, pick one and
+document it); messages remain queryable through it; never deleted.
+
+### 8.10 Screenshot protection — Android FLAG_SECURE, cross-platform detection
+
+Use `expo-screen-capture`. Call its `usePreventScreenCapture()` hook (sets `FLAG_SECURE` on
+Android automatically; this is the *only* platform where prevention is actually possible) on the
+sensitive screens listed in the brief (ProfileDetail, ChatThread, any Wali-share view, anywhere a
+private photo renders). Use `addScreenshotListener` (fires on both iOS and Android when a
+screenshot is taken — Apple does not allow blocking the screenshot itself, only notifying after
+the fact) to `POST /api/security/screenshot-event { conversationId?, platform }`, which creates a
+`SecurityEvent` and notifies the *other* participant per the brief's exact copy ("Security Alert: A
+screenshot was detected while viewing your private conversation/profile."). **Document plainly, in
+the mobile README and the final report, that this cannot detect screen recording, a second device
+photographing the screen, or (on iOS) be prevented at all — only detected after the fact.** Web is
+out of scope for this pass (the app is the RN client; there is no web client to protect).
+
+### 8.11 Mobile UX fixes
+
+- **Keyboard-aware forms everywhere**, not just Welcome/ChatThread: `ShariahQAScreen` and
+  `ProfileSetupScreen` (the two long forms) need the same `KeyboardAvoidingView` +
+  scroll-to-focused-field treatment already used elsewhere. Use a library already good at this
+  (`react-native-keyboard-aware-scroll-view` or Keyboard-controller equivalents already common in
+  Expo SDK 57) rather than hand-rolling scroll-offset math — pick one, apply it consistently, don't
+  introduce a second different approach per screen.
+- **Chat input redesign**: replace the single-line `TextField` in `ChatThreadScreen` with a
+  multiline, auto-growing input (grows with content up to a sane max height, e.g. ~5 lines, then
+  scrolls internally), Enter/newline behavior appropriate for a chat app (submitting on a dedicated
+  send button/action, not swallowing every Enter as newline-only or send-only in a confusing way —
+  match common messaging-app convention), staying pinned above the keyboard, without ballooning to
+  an awkward size on a desktop/tablet width. Keep the existing flat design tokens (colors, square
+  corners, Archivo) — this is a behavior fix, not a redesign of the visual language.
+- **Bottom tab bar must never overlap the keyboard** — verify the existing tab bar + keyboard
+  interaction on the three tab screens that have text inputs reachable from them (Discover has
+  none directly, but Account/Matches lead to forms) — mainly confirm nothing regresses once the
+  keyboard-aware library is added.
+
+### 8.12 Authorization checklist (verify, don't just implement)
+
+Every one of these must 403/404 correctly, and every new test file should include a case for it:
+viewing another user's private photo without an accepted `PhotoAccessRequest`; reading a
+conversation you're not a participant in; accepting/rejecting a `PhotoAccessRequest` you don't own;
+accepting your own `reopen-request` (must be the other participant); unblocking a block someone
+else placed (there's no such route — you can only ever act on your own `BlockedUser` rows, enforce
+`blockerId = req.userId` on delete); reading a `WaliShare` conversation without a valid,
+non-revoked token; reopening a conversation without a pending `REOPEN_REQUESTED` state to act on.
+
+### 8.13 Testing
+
+Automated only — this sandbox has no simulator/device/browser, so no manual/on-device testing
+claims. Extend `backend/tests/` with coverage for: the full `Conversation` state machine (every
+listed transition in §8.2, and rejection of every transition not listed, including the two
+concurrent-accept/close race scenarios via overlapping requests against the same row); blocking
+excluded from discover/match-engine/interests/chat/notifications in both directions; the photo
+consent flow (request → accept → visible, request → reject → still hidden, re-request after a
+reject); wali-share token access and revocation; the 6-month archive query (seed a `closedAt` far
+in the past, run the sweep function directly, assert `archivedAt` set and excluded from the
+default list); `profileComplete` computed correctly for both genders. Extend `mobile/`'s existing
+unit tests only where there's real client-side logic worth unit-testing (e.g. any new client-side
+state-derivation helpers) — don't invent RN-render tests for every screen just to pad coverage.
+
+### 8.14 Explicitly out of scope for this pass
+
+**Deployment.** No VPS/cloud access has been arranged yet (see the conversation for the pending
+SSH/AWS discussion) — this section is implementation only. Ship the code, tests, and an updated
+migration; deploying it is a separate step once infrastructure access exists.
