@@ -1,15 +1,6 @@
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -142,12 +133,13 @@ export function ProfileSetupScreen() {
   return (
     <Screen>
       <Header title="Your profile" onBack={() => navigation.navigate('ShariahQA')} />
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoider}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid
+        extraScrollHeight={24}
+        keyboardOpeningTime={0}
       >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.sideBySide}>
           <View style={styles.flex1}>
             <FieldLabel>Full name</FieldLabel>
@@ -306,16 +298,12 @@ export function ProfileSetupScreen() {
 
         {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
           <Button title="Enter Kifaah" onPress={finish} loading={updateProfile.isPending} style={styles.finishBtn} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoider: {
-    flex: 1,
-  },
   loading: {
     flex: 1,
     alignItems: 'center',

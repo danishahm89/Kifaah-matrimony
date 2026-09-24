@@ -161,6 +161,8 @@ model InterestRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  conversation Conversation?
+
   @@unique([fromUserId, toUserId])
   @@index([fromUserId, toUserId])
   @@index([toUserId])
@@ -181,18 +183,100 @@ model ChatMessage {
   @@index([toUserId, fromUserId])
 }
 
+// `type` — CONTRACT §8.6: match_suggestion | new_request | request_accepted |
+// new_message | photo_requested | photo_request_accepted |
+// photo_request_rejected | conversation_closed | reopen_requested |
+// reopen_accepted | reopen_rejected | screenshot_alert
 model Notification {
-  id          String @id @default(cuid())
-  userId      String
-  candidateId String
+  id     String @id @default(cuid())
+  userId String
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  score     Int
-  label     String
-  text      String
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  type        String
+  title       String
+  message     String
+  referenceId String?
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   @@index([userId, read])
+}
+
+enum ConversationStatus {
+  ACTIVE
+  CLOSED
+  REOPEN_REQUESTED
+  BLOCKED
+}
+
+model Conversation {
+  id         String          @id @default(cuid())
+  interestId String          @unique
+  interest   InterestRequest @relation(fields: [interestId], references: [id])
+
+  status ConversationStatus @default(ACTIVE)
+
+  closedAt                DateTime?
+  closedByUserId          String?
+  reopenRequestedByUserId String?
+  reopenRequestedAt       DateTime?
+  archivedAt              DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  photoAccessRequests PhotoAccessRequest[]
+  waliShares          WaliShare[]
+
+  @@index([status, closedAt])
+}
+
+model BlockedUser {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+model PhotoAccessRequest {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+
+  requesterId String
+  ownerId     String
+
+  status    String   @default("pending") // pending | accepted | rejected
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([conversationId, requesterId])
+}
+
+model WaliShare {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+
+  sharedByUserId String
+  accessToken    String  @unique
+  revoked        Boolean @default(false)
+
+  createdAt    DateTime  @default(now())
+  revokedAt    DateTime?
+  lastViewedAt DateTime?
+}
+
+model SecurityEvent {
+  id                String   @id @default(cuid())
+  userId            String
+  triggeredByUserId String?
+  type              String // "screenshot_detected"
+  conversationId    String?
+  platform          String? // "ios" | "android" | "web"
+  createdAt         DateTime @default(now())
 }

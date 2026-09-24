@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -11,11 +11,12 @@ import { colors, fonts } from '../theme/tokens';
 import { useProfileMe } from '../api/hooks/useProfile';
 import { useLogout, useMe } from '../api/hooks/useAuth';
 import { useRunMatchEngine } from '../api/hooks/useMatchEngine';
+import { useBlockedUsers, useUnblockUser } from '../api/hooks/useBlocks';
 import { useAuthStore } from '../store/authStore';
 import { tabStrings } from '../i18n/strings';
 import { useToastStore } from '../store/uiStore';
 import type { RootStackParamList, MainTabParamList } from '../navigation/types';
-import type { Profile } from '../types';
+import type { BlockedUserItem, Profile } from '../types';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Account'>,
@@ -51,6 +52,22 @@ export function AccountScreen() {
   const { data: profile } = useProfileMe();
   const { data: me } = useMe(true);
   const runEngine = useRunMatchEngine();
+  const { data: blockedUsers = [] } = useBlockedUsers();
+  const unblockUser = useUnblockUser();
+
+  const confirmUnblock = (item: BlockedUserItem) => {
+    Alert.alert('Unblock this user?', 'Are you sure you want to unblock this user?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Unblock',
+        onPress: () =>
+          unblockUser.mutate(item.id, {
+            onSuccess: () => showToast(`${item.name} has been unblocked.`),
+            onError: () => showToast('Could not unblock this user. Please try again.'),
+          }),
+      },
+    ]);
+  };
 
   const subscribed = me?.subscription?.status === 'active';
   const modestyQuestion = gender === 'bride' ? 'Hijab' : 'Beard';
@@ -64,10 +81,7 @@ export function AccountScreen() {
 
   return (
     <Screen edges={['top']}>
-      <TabHeader
-        title={tabStrings(lang).account}
-        onOpenNotification={(candidateId) => navigation.navigate('ProfileDetail', { profileId: candidateId, origin: 'notification' })}
-      />
+      <TabHeader title={tabStrings(lang).account} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{myName}</Text>
@@ -120,6 +134,29 @@ export function AccountScreen() {
 
         <Button title="Frequently asked questions" variant="outline" onPress={() => navigation.navigate('FAQ')} />
 
+        {/* CONTRACT.md §8.3 — blocked users list, block date, revocable with its own confirmation. */}
+        <View>
+          <Text style={styles.sectionLabel}>Blocked users</Text>
+          {blockedUsers.length === 0 ? (
+            <Text style={styles.engineBody}>You haven't blocked anyone.</Text>
+          ) : (
+            <View style={styles.summaryList}>
+              {blockedUsers.map((item) => (
+                <View key={item.id} style={styles.blockedRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.summaryValue2}>
+                      {item.name}
+                      {item.city ? ` · ${item.city}` : ''}
+                    </Text>
+                    <Text style={styles.blockedDate}>Blocked {new Date(item.createdAt).toLocaleDateString()}</Text>
+                  </View>
+                  <Button title="Unblock" variant="small-outline" onPress={() => confirmUnblock(item)} />
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
         <View style={styles.engineBox}>
           <Text style={styles.eyebrow}>Match engine</Text>
           <Text style={styles.engineBody}>
@@ -134,8 +171,10 @@ export function AccountScreen() {
             onPress={() =>
               runEngine.mutate(undefined, {
                 onSuccess: (data) => {
+                  // §8.1/§8.6 — Notification.score was dropped when the model was generalized;
+                  // `message` carries the same "New match found (NN% match)" wording server-side.
                   if (data.notifications.length > 0) {
-                    showToast(`New match found (${data.notifications[0].score}% match)`);
+                    showToast(data.notifications[0].message);
                   }
                 },
               })
@@ -243,5 +282,24 @@ const styles = StyleSheet.create({
   },
   logoutBtn: {
     marginTop: 8,
+  },
+  blockedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSoft,
+    paddingBottom: 10,
+  },
+  summaryValue2: {
+    fontSize: 13,
+    fontFamily: fonts.semiBold,
+    color: colors.ink,
+  },
+  blockedDate: {
+    fontSize: 11,
+    fontFamily: fonts.regular,
+    color: colors.muted,
+    marginTop: 2,
   },
 });

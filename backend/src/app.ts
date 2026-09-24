@@ -27,6 +27,10 @@ import matchEngineRoutes from "./routes/matchEngine";
 import pricingRoutes from "./routes/pricing";
 import paymentsRoutes from "./routes/payments";
 import faqRoutes from "./routes/faq";
+import blocksRoutes from "./routes/blocks";
+import photoRequestsRoutes from "./routes/photoRequests";
+import waliRoutes from "./routes/wali";
+import securityRoutes from "./routes/security";
 
 export const app = express();
 
@@ -100,6 +104,10 @@ app.use("/api/match-engine", matchEngineRoutes);
 app.use("/api/pricing", pricingRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/faq", faqRoutes);
+app.use("/api/blocks", blocksRoutes);
+app.use("/api/photo-requests", photoRequestsRoutes);
+app.use("/api/wali", waliRoutes); // unauthenticated — CONTRACT §8.5
+app.use("/api/security", securityRoutes);
 
 // Not-found + error handlers
 app.use((_req, res) => res.status(404).json({ error: "not_found" }));

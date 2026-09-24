@@ -1,5 +1,6 @@
 import { useAuthStore } from '../store/authStore';
 import type {
+  BlockedUserItem,
   ChatMessage,
   ChatSummary,
   CreateOrderResponse,
@@ -8,6 +9,7 @@ import type {
   Gender,
   InterestRequest,
   NotificationItem,
+  PhotoAccessStatus,
   PricingResponse,
   Profile,
   ProfileDetail,
@@ -15,6 +17,8 @@ import type {
   Subscription,
   User,
   VerifyPaymentResponse,
+  WaliShareCreateResponse,
+  WaliShareState,
 } from '../types';
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
@@ -138,7 +142,14 @@ export const authApi = {
   refresh: (refreshToken: string) => post<{ token: string; refreshToken: string }>('/api/auth/refresh', { refreshToken }),
   logout: (refreshToken: string) => post<{ ok: true }>('/api/auth/logout', { refreshToken }),
   logoutAll: () => post<{ ok: true }>('/api/auth/logout-all'),
-  me: () => get<{ user: User; profile: Profile | null; subscription: Subscription | null }>('/api/auth/me'),
+  // `profileComplete` — CONTRACT.md §8.7, computed server-side (girls need a wali to be complete,
+  // boys don't). Optional here (rather than required) so the app still works, via
+  // RootNavigator's client-side fallback formula, against a backend snapshot that hasn't landed
+  // the field yet — see the final report's "assumptions" section.
+  me: () =>
+    get<{ user: User; profile: Profile | null; subscription: Subscription | null; profileComplete?: boolean }>(
+      '/api/auth/me'
+    ),
 };
 
 // ---- Reference data ----
@@ -171,6 +182,30 @@ export const discoverApi = {
 };
 export const profilesApi = {
   detail: (id: string) => get<ProfileDetail>(`/api/profiles/${id}`),
+  // CONTRACT.md §8.4
+  requestPhoto: (id: string) => post<{ id: string; status: PhotoAccessStatus }>(`/api/profiles/${id}/photo-request`),
+};
+
+// ---- Photo access requests (CONTRACT.md §8.4) ----
+export const photoRequestsApi = {
+  accept: (id: string) => post<{ id: string; status: PhotoAccessStatus }>(`/api/photo-requests/${id}/accept`),
+  reject: (id: string) => post<{ id: string; status: PhotoAccessStatus }>(`/api/photo-requests/${id}/reject`),
+};
+
+// ---- Blocking (CONTRACT.md §8.3) ----
+export const blocksApi = {
+  list: () => get<BlockedUserItem[]>('/api/blocks'),
+  block: (userId: string) => post<{ ok: true }>(`/api/blocks/${userId}`),
+  unblock: (userId: string) => del<{ ok: true }>(`/api/blocks/${userId}`),
+};
+
+// ---- Security / screenshot detection (CONTRACT.md §8.10) ----
+export const securityApi = {
+  // `targetUserId` lets the backend notify the right person when there's no conversation yet
+  // (e.g. a screenshot taken while viewing a candidate's ProfileDetail pre-connection) — the
+  // backend ignores it when `conversationId` is present (CONTRACT.md §8.10 deviation #5).
+  reportScreenshot: (payload: { conversationId?: string; targetUserId?: string; platform: 'ios' | 'android' }) =>
+    post<{ ok: true }>('/api/security/screenshot-event', payload),
 };
 
 // ---- Interests ----
@@ -222,12 +257,25 @@ export const interestsApi = {
 // ---- Chat ----
 export const chatApi = {
   conversations: () => get<ChatSummary[]>('/api/chats'),
+  // CONTRACT.md §8.9 — closed conversations older than 6 months are swept into this list by a
+  // daily backend job; still readable (never deleted), just excluded from the default list above.
+  archivedConversations: () => get<ChatSummary[]>('/api/chats?archived=true'),
   // GET /api/chats/:userId/messages returns { messages, chaperoneChat } (backend/src/routes/chats.ts);
   // the app sources the chaperone banner state from the auth store's user.chaperoneChat instead, so
   // only the message list is needed here.
   messages: (userId: string) =>
     get<{ messages: ChatMessage[]; chaperoneChat: boolean }>(`/api/chats/${userId}/messages`).then((r) => r.messages),
   send: (userId: string, text: string) => post<ChatMessage>(`/api/chats/${userId}/messages`, { text }),
+  // ---- Conversation lifecycle (CONTRACT.md §8.2/§8.8) — reuses the existing userId-keyed
+  // convention rather than a parallel conversationId-keyed resource, per the contract's own note.
+  close: (userId: string) => post<{ ok: true }>(`/api/chats/${userId}/close`),
+  requestReopen: (userId: string) => post<{ ok: true }>(`/api/chats/${userId}/reopen-request`),
+  acceptReopen: (userId: string) => post<{ ok: true }>(`/api/chats/${userId}/reopen-request/accept`),
+  rejectReopen: (userId: string) => post<{ ok: true }>(`/api/chats/${userId}/reopen-request/reject`),
+  // ---- Wali sharing (CONTRACT.md §8.5) — bride-side participant only.
+  createWaliShare: (userId: string) => post<WaliShareCreateResponse>(`/api/chats/${userId}/wali-share`),
+  revokeWaliShare: (userId: string) => del<{ ok: true }>(`/api/chats/${userId}/wali-share`),
+  waliShareStatus: (userId: string) => get<WaliShareState>(`/api/chats/${userId}/wali-share`),
 };
 
 // ---- Notifications ----

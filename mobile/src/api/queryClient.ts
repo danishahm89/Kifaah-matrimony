@@ -19,8 +19,11 @@ export const queryKeys = {
   interestsSent: ['interests', 'sent'] as const,
   interestsReceived: ['interests', 'received'] as const,
   chats: ['chats'] as const,
+  archivedChats: ['chats', 'archived'] as const,
   chatMessages: (userId: string) => ['chats', userId, 'messages'] as const,
+  waliShare: (userId: string) => ['chats', userId, 'wali-share'] as const,
   notifications: ['notifications'] as const,
   pricing: ['pricing'] as const,
   faq: ['faq'] as const,
+  blocks: ['blocks'] as const,
 };

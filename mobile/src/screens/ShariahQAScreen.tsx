@@ -1,13 +1,6 @@
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
@@ -33,6 +26,10 @@ export function ShariahQAScreen() {
 
   const modestyQuestion = gender === 'bride' ? 'Hijab' : 'Beard';
   const polygamyQuestion = gender === 'groom' ? 'View on polygamy' : 'View on being a co-wife';
+  // CONTRACT.md §8.7 — a wali is fixed/required for the bride side, genuinely optional
+  // (skippable) for the groom side. The backend only ever enforces this for BRIDE users
+  // (`profileComplete`'s formula), so the groom-side "Continue" check below matches that.
+  const waliRequired = gender === 'bride';
 
   if (isLoading || !ref) {
     return (
@@ -50,12 +47,13 @@ export function ShariahQAScreen() {
   return (
     <Screen>
       <Header title="Shariah compliance" onBack={() => navigation.navigate('Welcome')} />
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoider}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid
+        extraScrollHeight={24}
+        keyboardOpeningTime={0}
       >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.intro}>A few questions so matches are compatible in practice, not just on paper.</Text>
 
         <View>
@@ -81,13 +79,15 @@ export function ShariahQAScreen() {
         <View style={styles.noticeBox}>
           <ShieldIcon />
           <Text style={styles.noticeText}>
-            A wali (guardian) is required to be involved before contact is exchanged. This is fixed, not optional.
+            {waliRequired
+              ? 'A wali (guardian) is required to be involved before contact is exchanged. This is fixed, not optional.'
+              : "You can optionally add a wali (guardian) contact for your side — this step can be skipped."}
           </Text>
         </View>
         )}
         {gender !== 'groom' && (
         <View>
-          <FieldLabel>Wali / guardian's name</FieldLabel>
+          <FieldLabel>Wali / guardian's name{waliRequired ? '' : ' (optional)'}</FieldLabel>
           <TextField
             value={draft.wali ?? ''}
             onChangeText={(v) => {
@@ -127,10 +127,10 @@ export function ShariahQAScreen() {
           <Button
             title="Continue"
             onPress={() => {
-              // A wali is fixed, not optional (per the notice above), and the backend
-              // rejects an explicit blank with a bare "invalid_input" — catch it here
-              // with a message that says what to do, instead of letting that reach the user.
-              if (gender !== 'groom' && (!draft.wali || !draft.wali.trim())) {
+              // Fixed/required only on the bride side (§8.7) — the backend rejects an explicit
+              // blank with a bare "invalid_input", so catch it here with an actionable message
+              // instead of letting that reach the user. Groom side can continue with it empty.
+              if (waliRequired && (!draft.wali || !draft.wali.trim())) {
                 setWaliError("Please add your wali's (guardian's) name to continue.");
                 return;
               }
@@ -138,16 +138,12 @@ export function ShariahQAScreen() {
             }}
             style={styles.continueBtn}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoider: {
-    flex: 1,
-  },
   error: {
     fontFamily: fonts.semiBold,
     fontSize: 12,

@@ -9,6 +9,12 @@ export function useConversations() {
   return useQuery({ queryKey: queryKeys.chats, queryFn: chatApi.conversations });
 }
 
+// CONTRACT.md §8.9/§8.16 — archived conversations "should remain accessible through archived
+// conversations," a distinct view from the active list rather than mixed into it.
+export function useArchivedConversations(enabled: boolean) {
+  return useQuery({ queryKey: queryKeys.archivedChats, queryFn: chatApi.archivedConversations, enabled });
+}
+
 // Polls REST as the source of truth, and joins the Socket.IO /chat namespace for live
 // delivery when available (falling back gracefully to plain polling if the socket doesn't
 // connect — kept deliberately simple per CONTRACT.md's guidance).
@@ -64,5 +70,65 @@ export function useSendMessage(peerUserId: string | null) {
       if (peerUserId) queryClient.invalidateQueries({ queryKey: queryKeys.chatMessages(peerUserId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.chats });
     },
+  });
+}
+
+// ---- Conversation lifecycle (CONTRACT.md §8.2/§8.8) ----
+// All four just need `chats` (and the messages list, since a close/reopen can change whether
+// sending is allowed) refetched afterwards — the row's new `conversationStatus`/`canMessage` is
+// the only client-visible effect.
+function invalidateConversation(userId: string) {
+  queryClient.invalidateQueries({ queryKey: queryKeys.chats });
+  queryClient.invalidateQueries({ queryKey: queryKeys.chatMessages(userId) });
+}
+
+export function useCloseConversation(userId: string) {
+  return useMutation({
+    mutationFn: () => chatApi.close(userId),
+    onSuccess: () => invalidateConversation(userId),
+  });
+}
+
+export function useRequestReopen(userId: string) {
+  return useMutation({
+    mutationFn: () => chatApi.requestReopen(userId),
+    onSuccess: () => invalidateConversation(userId),
+  });
+}
+
+export function useAcceptReopen(userId: string) {
+  return useMutation({
+    mutationFn: () => chatApi.acceptReopen(userId),
+    onSuccess: () => invalidateConversation(userId),
+  });
+}
+
+export function useRejectReopen(userId: string) {
+  return useMutation({
+    mutationFn: () => chatApi.rejectReopen(userId),
+    onSuccess: () => invalidateConversation(userId),
+  });
+}
+
+// ---- Wali sharing (CONTRACT.md §8.5) ----
+export function useWaliShareStatus(userId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.waliShare(userId ?? ''),
+    queryFn: () => chatApi.waliShareStatus(userId as string),
+    enabled: !!userId && enabled,
+  });
+}
+
+export function useCreateWaliShare(userId: string) {
+  return useMutation({
+    mutationFn: () => chatApi.createWaliShare(userId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.waliShare(userId) }),
+  });
+}
+
+export function useRevokeWaliShare(userId: string) {
+  return useMutation({
+    mutationFn: () => chatApi.revokeWaliShare(userId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.waliShare(userId) }),
   });
 }

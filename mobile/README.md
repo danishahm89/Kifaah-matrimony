@@ -68,6 +68,53 @@ npx expo run:ios     # or: npx expo run:android
 Everything else in the app (Discover, Matches, Chat, Account, Pricing, Payment, FAQ, and the new
 phone+OTP auth flow) still runs fine in plain Expo Go.
 
+## Connection lifecycle v2 (CONTRACT.md §8)
+
+A second feature pass, additive on top of everything above:
+
+- **Blocking** (§8.3) — a "Block" action on `ProfileDetailScreen`, `ChatThreadScreen`'s "⋯" menu,
+  and accepted rows in `MatchesScreen`, each behind a confirmation dialog. `AccountScreen` gains a
+  **Blocked users** section (list, block date, "Unblock" with its own confirmation).
+- **Conversation state** (§8.2/§8.8) — `ChatThreadScreen` reflects `conversationStatus` from
+  `GET /api/chats`: a normal composer when `active`; a disabled input + "Conversation Closed" +
+  "Request Reopen" when `closed`; "Reopen request sent" for the requester vs. an Accept/Reject
+  banner for the recipient when `reopen_requested`; a "blocked" notice when `blocked`. "Close
+  Conversation" lives in the same "⋯" menu, with the brief's exact confirmation copy. The pure
+  state → UI mapping is `src/screens/chatThreadState.ts` (unit-tested).
+- **Explicit photo consent** (§8.4) — `ProfileDetailScreen` never auto-reveals a photo once the
+  existing subscribe+accepted gate passes; it shows "Request Photo" instead, reflects
+  `photoAccessStatus` (none/pending/accepted/rejected), and surfaces an incoming request (via its
+  notification landing here, and an inline Accept/Reject box) for the photo's owner.
+- **Wali sharing** (§8.5) — bride-side conversations get a "Share Conversation with Wali" action
+  in `ChatThreadScreen`'s menu, handing the returned link to the OS share sheet (`Share` from
+  `react-native`) so the user sends it themselves via SMS/WhatsApp/etc.; the same menu shows
+  current share status and offers "Revoke". No in-app Wali login/view — the Wali's own read-only
+  page is server-rendered and reached only via the shared link, entirely outside this app.
+- **Generalized notifications** (§8.6) — `TabHeader`'s panel reads the new `type`/`title`/
+  `message`/`referenceId` shape and resolves where a tap should go centrally via
+  `src/navigation/notificationTarget.ts` (unit-tested), rather than every screen repeating the
+  same `onOpenNotification` callback.
+- **`profileComplete` onboarding gate** (§8.7) — `RootNavigator` switches on the backend-computed
+  `profileComplete` (falling back to the same formula client-side if a backend snapshot hasn't
+  landed the field yet — see `RootNavigator.tsx`). The wali notice on `ShariahQAScreen` is
+  gender-conditional: fixed/required copy for a bride, genuinely skippable for a groom.
+- **Keyboard-aware forms** (§8.11) — `WelcomeScreen`, `ShariahQAScreen` and `ProfileSetupScreen`
+  all use `react-native-keyboard-aware-scroll-view`'s `KeyboardAwareScrollView` (one consistent
+  approach app-wide, replacing hand-rolled `KeyboardAvoidingView` offsets) so the keyboard never
+  covers the focused field.
+- **Chat input** (§8.11) — `ChatThreadScreen`'s composer is a multiline, auto-growing `TextInput`
+  (grows up to ~5 lines, then scrolls internally, capped at 720px wide on tablet/desktop widths),
+  with Enter/return inserting a newline and a dedicated send button submitting — the common
+  messaging-app convention — instead of the old single-line field.
+- **Screenshot protection** (§8.10) — `usePreventScreenCapture()` (via
+  `src/hooks/useScreenshotReporting.ts`) is active on `ProfileDetailScreen` and
+  `ChatThreadScreen`, and a detected screenshot is reported to
+  `POST /api/security/screenshot-event`. **This only sets Android's `FLAG_SECURE` — on iOS and
+  web a screenshot can never be prevented, only detected after the fact, and neither platform can
+  detect screen recording or a second device photographing the screen.** Android also needs
+  `READ_MEDIA_IMAGES`/`READ_EXTERNAL_STORAGE` (requested on mount, best-effort) for the listener to
+  fire at all pre/at API 33.
+
 ## Razorpay checkout
 
 `PaymentScreen` opens Razorpay's **Standard Checkout** inside a `react-native-webview` page that
@@ -102,6 +149,12 @@ Covered:
 - `src/store/__tests__/authStore.test.ts` — `authStore`'s session get/set/clear behavior
   (`setSession`, `setTokens`, `updateUser`, `logout`, `hydrate`), against a manual in-memory mock
   of `expo-secure-store` (`__mocks__/expo-secure-store.js`).
+- `src/screens/__tests__/chatThreadState.test.ts` — the conversation-lifecycle → UI state
+  derivation (§8.2/§8.8): every `conversationStatus`, the requester/recipient split on a pending
+  reopen, and the `canMessage: false`-while-`active` "limited" case.
+- `src/navigation/__tests__/notificationTarget.test.ts` — the generalized-notification →
+  navigation-target mapping (§8.6) for every `type`, including the `screenshot_alert` /
+  `conversationId` special case and missing-`referenceId` fallbacks.
 
 ## Structure
 
