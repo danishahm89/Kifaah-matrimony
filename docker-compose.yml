@@ -47,7 +47,23 @@ services:
         condition: service_healthy
     volumes:
       - kifaah_uploads:/app/uploads
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.kifaah-api.rule=Host(`kifaah-api.srv1164487.hstgr.cloud`)
+      - traefik.http.routers.kifaah-api.tls=true
+      - traefik.http.routers.kifaah-api.entrypoints=web,websecure
+      - traefik.http.routers.kifaah-api.tls.certresolver=mytlschallenge
+      - traefik.http.services.kifaah-api.loadbalancer.server.port=4000
+      - traefik.docker.network=n8n_default
+    networks:
+      - default
+      - n8n_default
 
 volumes:
   kifaah_postgres_data:
   kifaah_uploads:
+
+networks:
+  default: {}
+  n8n_default:
+    external: true

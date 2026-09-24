@@ -171,6 +171,9 @@ export interface CreateOrderResponse {
   amount: number;
   currency: 'INR';
   keyId: string;
+  // Dev/test only: true when the backend skipped the real Razorpay order
+  // (PAYMENTS_BYPASS). The app should skip the Razorpay checkout UI too.
+  bypass?: boolean;
 }
 
 export interface VerifyPaymentResponse {

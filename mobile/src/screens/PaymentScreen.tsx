@@ -83,11 +83,38 @@ export function PaymentScreen() {
   const tierLabel = tier === 'premium' ? 'Premium' : 'Basic';
   const billingLabel = billing === 'annual' ? 'Annual' : 'Monthly';
 
+  const finishPayment = async (orderId: string, paymentId: string, signature: string) => {
+    try {
+      await verifyPayment.mutateAsync({ orderId, paymentId, signature });
+      if (pendingInterestProfileId) {
+        await sendInterest.mutateAsync(pendingInterestProfileId);
+      }
+      setCheckoutHtml(null);
+      showToast('Subscription active');
+      if (returnTo === 'detail' && pendingInterestProfileId) {
+        navigation.navigate('ProfileDetail', { profileId: pendingInterestProfileId, origin: 'discover' });
+      } else {
+        navigation.navigate('Main', { screen: 'Account' });
+      }
+    } catch (e: any) {
+      setCheckoutHtml(null);
+      setProcessing(false);
+      setError(e?.message || 'Could not verify payment. Please contact support.');
+    }
+  };
+
   const startPayment = async () => {
     setError(null);
     setProcessing(true);
     try {
       const order = await createOrder.mutateAsync({ tier, billing });
+      if (order.bypass) {
+        // Dev/test only: backend skipped the real Razorpay order, so skip the
+        // checkout UI too and go straight to verify with the fixed sentinel
+        // signature the bypassed /verify route accepts.
+        await finishPayment(order.orderId, `bypass_payment_${Date.now()}`, 'BYPASS');
+        return;
+      }
       setCheckoutHtml(
         buildCheckoutHtml({
           keyId: order.keyId,
@@ -123,23 +150,7 @@ export function PaymentScreen() {
       return;
     }
     if (msg.type === 'success') {
-      try {
-        await verifyPayment.mutateAsync({ orderId: msg.orderId, paymentId: msg.paymentId, signature: msg.signature });
-        if (pendingInterestProfileId) {
-          await sendInterest.mutateAsync(pendingInterestProfileId);
-        }
-        setCheckoutHtml(null);
-        showToast('Subscription active');
-        if (returnTo === 'detail' && pendingInterestProfileId) {
-          navigation.navigate('ProfileDetail', { profileId: pendingInterestProfileId, origin: 'discover' });
-        } else {
-          navigation.navigate('Main', { screen: 'Account' });
-        }
-      } catch (e: any) {
-        setCheckoutHtml(null);
-        setProcessing(false);
-        setError(e?.message || 'Could not verify payment. Please contact support.');
-      }
+      await finishPayment(msg.orderId, msg.paymentId, msg.signature);
     }
   };
 

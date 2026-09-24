@@ -14,6 +14,7 @@ import { useSendInterest } from '../api/hooks/useInterests';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/uiStore';
 import { ApiError } from '../api/client';
+import { resolvePhotoUrl } from '../api/client';
 import type { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProfileDetail'>;
@@ -83,7 +84,7 @@ export function ProfileDetailScreen() {
       <ScrollView>
         <View style={styles.photoArea}>
           {!locked && detail.photoUrl ? (
-            <Image source={{ uri: detail.photoUrl }} style={styles.photoImage} />
+            <Image source={{ uri: resolvePhotoUrl(detail.photoUrl)! }} style={styles.photoImage} />
           ) : (
             <PlaceholderPhoto
               width="100%"

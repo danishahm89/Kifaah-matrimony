@@ -19,6 +19,15 @@ import type {
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
 
+// Backend returns photo paths as host-relative (e.g. "/uploads/xyz.jpg") so they
+// survive the app pointing at different environments. Resolve to an absolute URL
+// here, once, rather than in every screen that renders a photo.
+export function resolvePhotoUrl(photoUrl: string | null | undefined): string | null {
+  if (!photoUrl) return null;
+  if (/^https?:\/\//i.test(photoUrl)) return photoUrl;
+  return `${API_BASE_URL}${photoUrl.startsWith('/') ? '' : '/'}${photoUrl}`;
+}
+
 export class ApiError extends Error {
   status: number;
   body: any;

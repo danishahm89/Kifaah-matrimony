@@ -1,0 +1,63 @@
+workflows:
+  android-release-apk:
+    name: Kifaah Android Release APK
+    max_build_duration: 60
+    environment:
+      node: 22
+      groups:
+        - android_signing
+      vars:
+        EXPO_PUBLIC_API_URL: "https://kifaah-api.srv1164487.hstgr.cloud"
+    working_directory: mobile
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+      - name: Expo prebuild (android)
+        script: npx expo prebuild --platform android --no-install
+      - name: Fix splash screen resource
+        script: |
+          mkdir -p android/app/src/main/res/drawable
+          cp assets/splash-icon.png android/app/src/main/res/drawable/splashscreen_logo.png
+      - name: Verify keystore signing values
+        script: |
+          echo $CM_KEYSTORE | base64 --decode > /tmp/verify.keystore
+          if keytool -list -keystore /tmp/verify.keystore -storepass "$CM_KEYSTORE_PASSWORD" -alias "$CM_KEY_ALIAS" > /tmp/verify.log 2>&1; then
+            echo "KEYSTORE VALIDATION OK"
+            cat /tmp/verify.log
+          else
+            echo "KEYSTORE VALIDATION FAILED"
+            cat /tmp/verify.log
+            exit 1
+          fi
+      - name: Configure release signing
+        script: |
+          echo $CM_KEYSTORE | base64 --decode > android/app/release.keystore
+          python3 - << 'PYEOF2'
+          import re
+          path = "android/app/build.gradle"
+          with open(path) as f:
+              content = f.read()
+          release_signing = "\n        release {\n            storeFile file('release.keystore')\n            storePassword System.getenv(\"CM_KEYSTORE_PASSWORD\")\n            keyAlias System.getenv(\"CM_KEY_ALIAS\")\n            keyPassword System.getenv(\"CM_KEY_PASSWORD\")\n        }\n"
+          content = content.replace("signingConfigs {", "signingConfigs {" + release_signing, 1)
+          content = re.sub(r'(release\s*\{[^}]*?)signingConfig\s+signingConfigs\.debug', r'\1signingConfig signingConfigs.release', content, flags=re.S)
+          with open(path, "w") as f:
+              f.write(content)
+          PYEOF2
+      - name: Build release APK
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          echo '--- APK search ---'
+          find /Users/builder/clone -iname '*.apk' 2>/dev/null
+    artifacts:
+    - mobile/android/app/build/outputs/apk/release/*.apk
+    - android/app/build/outputs/apk/release/*.apk
+    - "**/outputs/apk/release/*.apk"
+    publishing:
+      email:
+        recipients:
+          - danishahm89@gmail.com
+        notify:
+          success: true
+          failure: true

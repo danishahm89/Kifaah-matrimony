@@ -21,6 +21,19 @@ const baseSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_VERIFY_SERVICE_SID: z.string().optional(),
 
+  // Dev/test only: when set, ConsoleOtpProvider-style bypass is replaced by a fixed code
+  // accepted for ANY phone number. Never allowed in production (see below).
+  STATIC_OTP_CODE: z.string().min(4).optional(),
+
+  // Dev/test only: when set, /api/payments/create-order and /verify bypass the
+  // real Razorpay API entirely (fake order, no signature check). Never allowed
+  // in production (see below).
+  PAYMENTS_BYPASS: z.string().optional(),
+  // Optional Google Drive photo storage. When both are set (and the key file
+  // exists), profile photos upload to Drive instead of local disk.
+  GOOGLE_SERVICE_ACCOUNT_KEY_FILE: z.string().optional(),
+  GOOGLE_DRIVE_FOLDER_ID: z.string().optional(),
+
   SENTRY_DSN: z.string().optional(),
 
   RAZORPAY_KEY_ID: z.string().optional(),
@@ -50,6 +63,12 @@ if (isProduction) {
   if (!twilioComplete) {
     missing.push("TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_VERIFY_SERVICE_SID (all required in production)");
   }
+  if (data.STATIC_OTP_CODE) {
+    missing.push("STATIC_OTP_CODE must not be set in production");
+  }
+  if (data.PAYMENTS_BYPASS) {
+    missing.push("PAYMENTS_BYPASS must not be set in production");
+  }
   if (missing.length > 0) {
     // eslint-disable-next-line no-console
     console.error(
@@ -76,6 +95,11 @@ export const env = {
   TWILIO_AUTH_TOKEN: data.TWILIO_AUTH_TOKEN,
   TWILIO_VERIFY_SERVICE_SID: data.TWILIO_VERIFY_SERVICE_SID,
   twilioConfigured: !!(data.TWILIO_ACCOUNT_SID && data.TWILIO_AUTH_TOKEN && data.TWILIO_VERIFY_SERVICE_SID),
+
+  STATIC_OTP_CODE: data.STATIC_OTP_CODE,
+  PAYMENTS_BYPASS: !!data.PAYMENTS_BYPASS,
+  GOOGLE_SERVICE_ACCOUNT_KEY_FILE: data.GOOGLE_SERVICE_ACCOUNT_KEY_FILE,
+  GOOGLE_DRIVE_FOLDER_ID: data.GOOGLE_DRIVE_FOLDER_ID,
 
   SENTRY_DSN: data.SENTRY_DSN,
 
