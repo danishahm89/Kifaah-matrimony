@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 
 type Variant = 'primary' | 'surface' | 'outline' | 'text' | 'small-primary' | 'small-outline';
@@ -56,7 +56,7 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
 
   const variantStyle = VARIANT_STYLES[variant];
 
-  return (
+  const el = (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
         onPress={onPress}
@@ -80,6 +80,17 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
       </Pressable>
     </Animated.View>
   );
+  if (Platform.OS === 'web') {
+    return (
+      <div
+        onClick={() => { if (!disabled && !loading && onPress) onPress(); }}
+        style={{ display: 'block', cursor: (disabled || loading) ? 'default' : 'pointer' } as any}
+      >
+        {el}
+      </div>
+    );
+  }
+  return el;
 }
 
 const styles = StyleSheet.create({
