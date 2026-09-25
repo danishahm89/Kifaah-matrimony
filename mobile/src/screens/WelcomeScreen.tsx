@@ -191,39 +191,69 @@ export function WelcomeScreen() {
                 ISLAMIC MATRIMONY · SHARIAH-GUIDED
               </Text>
               <Text style={[styles.intro, { color: themeColors.muted }]}>
-                A matrimony app for the Muslim community — built around Shariah etiquette:
-                photos stay blurred, contact details stay hidden, and every profile is
-                guardian-aware, until both sides agree to connect.
+                Find your ideal match through a platform built on Islamic values
+                — Shariah-guided, guardian-aware, and privacy-first.
               </Text>
+              <View style={styles.featurePills}>
+                {['Shariah-Guided', 'Privacy-First', 'Wali System', 'Serious Matches'].map(lbl => (
+                  <View key={lbl} style={[styles.pill, { backgroundColor: themeColors.greenBg, borderColor: themeColors.border }]}>
+                    <Text style={[styles.pillText, { color: themeColors.primary }]}>{lbl}</Text>
+                  </View>
+                ))}
+              </View>
             </Animated.View>
 
             {notice ? <Text style={[styles.error, { color: themeColors.red }]}>{notice}</Text> : null}
 
             <Text style={[styles.pickLabel, { color: themeColors.muted }]}>I AM A</Text>
 
-            <Pressable
-              style={[styles.roleCard, { backgroundColor: themeColors.bgCard, borderColor: themeColors.primary, shadowColor: themeColors.shadow }]}
-              onPress={() => pick('groom')}
-            >
-              <Text style={styles.roleEmoji}>🤵</Text>
-              <View>
-                <Text style={[styles.roleTitle, { color: themeColors.primary }]}>Brother</Text>
-                <Text style={[styles.roleSubtitle, { color: themeColors.muted }]}>Looking for a sister</Text>
-              </View>
-              <Text style={[styles.roleArrow, { color: themeColors.primary }]}>›</Text>
-            </Pressable>
+              <Pressable
+                style={[styles.roleCard, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border, shadowColor: themeColors.shadow }]}
+                onPress={() => pick('groom')}
+              >
+                <View style={[styles.roleIconCircle, { backgroundColor: themeColors.greenBg }]}>
+                  <Text style={styles.roleEmoji}>🧔</Text>
+                </View>
+                <View style={styles.roleInfo}>
+                  <Text style={[styles.roleTitle, { color: themeColors.ink }]}>I am a Brother</Text>
+                  <Text style={[styles.roleSubtitle, { color: themeColors.muted }]}>Looking for a righteous sister</Text>
+                  <View style={styles.roleTags}>
+                    <View style={[styles.roleTag, { backgroundColor: themeColors.greenBg }]}>
+                    <Text style={[styles.roleTagText, { color: themeColors.primary }]}>Serious Intent</Text>
+                    </View>
+                    <View style={[styles.roleTag, { backgroundColor: themeColors.greenBg }]}>
+                    <Text style={[styles.roleTagText, { color: themeColors.primary }]}>Wali Approved</Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={[styles.roleArrowCircle, { backgroundColor: themeColors.primary }]}>
+                  <Text style={styles.roleArrowText}>›</Text>
+                </View>
+              </Pressable>
 
-            <Pressable
-              style={[styles.roleCard, { backgroundColor: themeColors.bgCard, borderColor: themeColors.accent, shadowColor: themeColors.shadow }]}
-              onPress={() => pick('bride')}
-            >
-              <Text style={styles.roleEmoji}>👰</Text>
-              <View>
-                <Text style={[styles.roleTitle, { color: themeColors.accent }]}>Sister</Text>
-                <Text style={[styles.roleSubtitle, { color: themeColors.muted }]}>Looking for a brother</Text>
-              </View>
-              <Text style={[styles.roleArrow, { color: themeColors.accent }]}>›</Text>
-            </Pressable>
+              <Pressable
+                style={[styles.roleCard, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border, shadowColor: themeColors.shadow }]}
+                onPress={() => pick('bride')}
+              >
+                <View style={[styles.roleIconCircle, { backgroundColor: '#fdf5e0' }]}>
+                  <Text style={styles.roleEmoji}>🧕</Text>
+                </View>
+                <View style={styles.roleInfo}>
+                  <Text style={[styles.roleTitle, { color: themeColors.ink }]}>I am a Sister</Text>
+                  <Text style={[styles.roleSubtitle, { color: themeColors.muted }]}>Looking for a righteous brother</Text>
+                  <View style={styles.roleTags}>
+                    <View style={[styles.roleTag, { backgroundColor: '#fdf5e0' }]}>
+                    <Text style={[styles.roleTagText, { color: themeColors.accent }]}>Guardian Aware</Text>
+                    </View>
+                    <View style={[styles.roleTag, { backgroundColor: '#fdf5e0' }]}>
+                    <Text style={[styles.roleTagText, { color: themeColors.accent }]}>Blurred Photos</Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={[styles.roleArrowCircle, { backgroundColor: themeColors.accent }]}>
+                  <Text style={styles.roleArrowText}>›</Text>
+                </View>
+              </Pressable>
 
             <Button
               title="Already have an account? Log in"
@@ -234,7 +264,8 @@ export function WelcomeScreen() {
         ) : !otpSent ? (
           <View style={styles.authForm}>
             <Text style={[styles.authHint, { color: themeColors.muted }]}>
-              Enter your mobile number. We'll send you a 6-digit code.
+              Enter your mobile number to continue.
+              We'll send a 6-digit verification code.
             </Text>
 
             {/* Country picker */}
@@ -409,9 +440,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', minHeight: 48,
     paddingHorizontal: 12, borderRadius: 10, borderWidth: 1.5,
   },
-  phonePrefix: { fontFamily: fonts.semiBold, fontSize: 16, marginRight: 8 },
-  phoneInput: { flex: 1, fontFamily: fonts.regular, fontSize: 16, paddingVertical: 8 },
-  phoneCount: { fontFamily: fonts.regular, fontSize: 12 },
+  phonePrefix: { fontFamily: fonts.semiBold, fontSize: 16, marginRight: 8, lineHeight: 20 },
+  phoneInput: { flex: 1, fontFamily: fonts.regular, fontSize: 16, paddingVertical: 10, paddingHorizontal: 12, lineHeight: 20 },
+  phoneCount: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 20, marginLeft: 6 },
   codeInput: {
     minHeight: 48, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1.5,
     fontFamily: fonts.regular, fontSize: 20, letterSpacing: 6, textAlign: 'center',
@@ -434,4 +465,44 @@ const styles = StyleSheet.create({
   },
   countryItemName: { fontFamily: fonts.regular, fontSize: 15, flex: 1, marginLeft: 4 },
   countryItemCode: { fontFamily: fonts.semiBold, fontSize: 14 },
+  featurePills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 16,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 4,
+  },
+  pillIcon: { fontSize: 13 },
+  pillText: { fontFamily: fonts.semiBold, fontSize: 11, letterSpacing: 0.3 },
+  roleIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleInfo: { flex: 1 },
+  roleTags: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  roleTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  roleTagText: { fontFamily: fonts.semiBold, fontSize: 10, letterSpacing: 0.2 },
+  roleArrowCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleArrowText: { color: '#ffffff', fontSize: 20, lineHeight: 28, fontWeight: '600' },
 });

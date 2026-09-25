@@ -85,7 +85,20 @@ async function request<T>(path: string, options: RequestInit = {}, isRetry = fal
   }
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  logger.debug('API', `${options.method ?? 'GET'} ${path}`);
+  // Add 30-second timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, signal: controller.signal });
+  } catch (fetchErr: unknown) {
+    clearTimeout(timeoutId);
+    const msg = fetchErr instanceof Error ? fetchErr.message : 'Network error';
+    logger.error('API', `fetch error: ${msg}`, { path });
+    throw new ApiError(0, { error: msg });
+  }
+  clearTimeout(timeoutId);
 
   let body: any = null;
   const text = await res.text();

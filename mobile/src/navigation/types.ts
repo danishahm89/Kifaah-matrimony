@@ -25,4 +25,6 @@ export type RootStackParamList = {
   // finally a generic label) when it's missing.
   ChatThread: { userId: string; name?: string };
   FAQ: undefined;
+  Health: undefined;
+  Admin: undefined;
 };

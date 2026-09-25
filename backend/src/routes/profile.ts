@@ -88,6 +88,11 @@ const profileUpdateSchema = z
   ;
 
 router.put("/me", requireAuth, async (req: AuthedRequest, res) => {
+  // Strip empty-string wali so groom profiles aren't blocked — treat blank
+  // as "not provided". The profileComplete formula enforces wali for brides.
+  if (req.body && typeof req.body.wali === 'string' && req.body.wali.trim() === '') {
+    delete req.body.wali;
+  }
   const parsed = profileUpdateSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
@@ -13,14 +13,50 @@ import { Archivo_600SemiBold } from '@expo-google-fonts/archivo/600SemiBold';
 import { Archivo_800ExtraBold } from '@expo-google-fonts/archivo/800ExtraBold';
 
 import { queryClient } from './src/api/queryClient';
+import type { RootStackParamList } from './src/navigation/types';
 import { useAuthStore } from './src/store/authStore';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { OfflineBanner } from './src/components/OfflineBanner';
 import { Toast } from './src/components/Toast';
 import { colors } from './src/theme/tokens';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
 import { ThemeProvider } from './src/theme/ThemeContext';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: [
+    'https://kifaah.alzakwaantours.com',
+    'http://82.112.227.246:8080',
+    'http://localhost:8080',
+    'http://localhost:19006',
+    'kifaah://',
+  ],
+  config: {
+    screens: {
+      Welcome: 'welcome',
+      ShariahQA: 'onboarding/shariah',
+      ProfileSetup: 'onboarding/profile',
+      Main: {
+        path: '',
+        screens: {
+          Discover: 'discover',
+          Matches: 'matches',
+          Chat: 'messages',
+          Account: 'account',
+        },
+      },
+      ProfileDetail: 'profile/:profileId',
+      ChatThread: 'thread/:userId',
+      Pricing: 'pricing',
+      Payment: 'payment',
+      FAQ: 'faq',
+    Health: 'health',
+    Admin: 'admin',
+    },
+  },
+};
+
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -50,11 +86,13 @@ export default function App() {
   if (!ready) return null;
 
   return (
+    <ErrorBoundary>
     <View style={styles.root} onLayout={onLayout}>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <SafeAreaProvider>
-            <NavigationContainer>
+            <NavigationContainer linking={linking}>
+              <OfflineBanner />
               <RootNavigator />
               <Toast />
             </NavigationContainer>
@@ -63,6 +101,7 @@ export default function App() {
         </QueryClientProvider>
       </ThemeProvider>
     </View>
+    </ErrorBoundary>
   );
 }
 

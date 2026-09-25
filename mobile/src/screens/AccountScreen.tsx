@@ -133,6 +133,8 @@ export function AccountScreen() {
         </View>
 
         <Button title="Frequently asked questions" variant="outline" onPress={() => navigation.navigate('FAQ')} />
+        <Button title="App Health & Logs" variant="outline" onPress={() => navigation.navigate('Health')} />
+        <Button title="Admin Panel" variant="outline" onPress={() => navigation.navigate('Admin')} />
 
         {/* CONTRACT.md §8.3 — blocked users list, block date, revocable with its own confirmation. */}
         <View>

@@ -39,10 +39,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderStrong,
+    borderRadius: 8,
   },
   inner: {
     flex: 1,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     fontFamily: fonts.regular,
     fontSize: 14,

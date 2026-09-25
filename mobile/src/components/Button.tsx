@@ -14,7 +14,7 @@ interface Props {
   align?: 'left' | 'center';
 }
 
-export function Button({ title, onPress, variant = 'primary', disabled, loading, style, align = 'left' }: Props) {
+export function Button({ title, onPress, variant = 'primary', disabled, loading, style, align = 'center' }: Props) {
   const { colors } = useTheme();
   const scale = React.useRef(new Animated.Value(1)).current;
 
@@ -90,11 +90,13 @@ const styles = StyleSheet.create({
   },
   center: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
   text: {
     fontFamily: 'Archivo_800ExtraBold',
     fontSize: 15,
     color: '#ffffff',
+    textAlign: 'center',
   },
   disabled: {
     opacity: 0.5,

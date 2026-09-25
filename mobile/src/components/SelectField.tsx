@@ -81,6 +81,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
     maxHeight: '70%',
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
+    borderRadius: 12,
   },
   list: {
     flexGrow: 0,

@@ -15,6 +15,8 @@ import { PricingScreen } from '../screens/PricingScreen';
 import { PaymentScreen } from '../screens/PaymentScreen';
 import { ChatThreadScreen } from '../screens/ChatThreadScreen';
 import { FAQScreen } from '../screens/FAQScreen';
+import { HealthScreen } from '../screens/HealthScreen';
+import { AdminScreen } from '../screens/AdminScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -41,6 +43,8 @@ function MainStack() {
       <Stack.Screen name="Payment" component={PaymentScreen} />
       <Stack.Screen name="ChatThread" component={ChatThreadScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
+          <Stack.Screen name="Health" component={HealthScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Admin" component={AdminScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
