@@ -1,4 +1,5 @@
 import { ApiError } from '../api/client';
+import { useAuthStore } from '../store/authStore';
 
 /**
  * Maps a profile save/update failure to a message a user can act on.
@@ -13,7 +14,7 @@ export function friendlyProfileError(e: unknown): string {
       // Guardian (wali) name is the field most likely to be blank at this point,
       // since the Shariah QA screen doesn't require it before letting you continue.
       const fieldErrors = e.body?.details?.fieldErrors ?? {};
-      if (fieldErrors.wali) {
+      if (fieldErrors.wali && useAuthStore.getState().user?.gender !== 'groom') {
         return "Please go back and add your wali's (guardian's) name.";
       }
       if (fieldErrors.name) {

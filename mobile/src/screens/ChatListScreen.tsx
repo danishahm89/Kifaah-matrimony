@@ -1,4 +1,6 @@
 import React, { useCallback, useState } from 'react';
+import { GenderAvatar } from '../components/GenderAvatar';
+import { tr } from '../i18n/t';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -6,7 +8,6 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Screen } from '../components/Screen';
 import { TabHeader } from '../components/TabHeader';
-import { PlaceholderPhoto } from '../components/PlaceholderPhoto';
 import { EmptyState } from '../components/EmptyState';
 import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useConversations, useArchivedConversations } from '../api/hooks/useChat';
@@ -26,6 +27,8 @@ export function ChatListScreen() {
   const navigation = useNavigation<Nav>();
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
   const [tab, setTab] = useState<'active' | 'archived'>('active');
+  const myGender = useAuthStore((s) => s.user?.gender ?? 'bride');
+  const theirGender = myGender === 'groom' ? 'bride' : 'groom';
 
   const activeQuery = useConversations();
   const archivedQuery = useArchivedConversations(tab === 'archived');
@@ -56,18 +59,14 @@ export function ChatListScreen() {
     const label = statusLabel(item.conversationStatus);
     return (
       <Pressable
-        style={styles.row}
+        style={({ hovered, pressed }: any) => [styles.row, (hovered || pressed) && styles.rowActive]}
         onPress={() => navigation.navigate('ChatThread', { userId: item.userId, name: item.name })}
       >
-        {resolvedPhoto ? (
-          <Image source={{ uri: resolvedPhoto }} style={styles.photo} />
-        ) : (
-          <PlaceholderPhoto width={48} height={48} locked={false} />
-        )}
+        <GenderAvatar gender={theirGender} size={48} photoUrl={resolvedPhoto} />
         <View style={styles.rowBody}>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.preview} numberOfLines={1}>
-            {label ? `${label} · ` : ''}
+            {label ? `${tr(label)} · ` : ''}
             {item.canMessage === false && !label ? 'Not messageable yet · ' : ''}
             {item.lastMessage || 'Say hello'}
           </Text>
@@ -116,6 +115,9 @@ const styles = themedStyles(() => StyleSheet.create({
   tabsRow: {
     paddingHorizontal: 20,
     paddingTop: 14,
+  },
+  rowActive: {
+    backgroundColor: colors.greenBg,
   },
   row: {
     flexDirection: 'row',

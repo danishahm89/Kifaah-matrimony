@@ -1,5 +1,7 @@
-import React from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { GenderAvatar } from '../components/GenderAvatar';
+import { tr } from '../i18n/t';
+import { ActivityIndicator, Animated, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Alert } from '../utils/alert';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -25,6 +27,7 @@ export function ProfileDetailScreen() {
   const route = useRoute<Props['route']>();
   const { profileId } = route.params;
   const chaperoneOn = useAuthStore((s) => s.user?.chaperoneChat ?? true);
+  const myGender = useAuthStore((s) => s.user?.gender ?? 'bride');
   const showToast = useToastStore((s) => s.show);
 
   // CONTRACT.md §8.10 — a private photo can render here, so this is one of the screens
@@ -39,6 +42,17 @@ export function ProfileDetailScreen() {
   const acceptPhotoRequest = useAcceptPhotoRequest(profileId);
   const rejectPhotoRequest = useRejectPhotoRequest(profileId);
   const blockUser = useBlockUser();
+
+  // Short celebration card after an interest is sent.
+  const [celebrate, setCelebrate] = useState(false);
+  const pop = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!celebrate) return;
+    pop.setValue(0);
+    Animated.spring(pop, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }).start();
+    const t = setTimeout(() => setCelebrate(false), 2800);
+    return () => clearTimeout(t);
+  }, [celebrate, pop]);
 
   const onBlock = () => {
     if (!detail) return;
@@ -62,11 +76,11 @@ export function ProfileDetailScreen() {
   if (isError && !detail) {
     return (
       <Screen>
-        <Header title="Profile" onBack={() => navigation.goBack()} />
+        <Header title={tr("Profile")} onBack={() => navigation.goBack()} />
         <View style={styles.loading}>
-          <Text style={styles.errorText}>We couldn't load this profile. It may no longer be available.</Text>
+          <Text style={styles.errorText}>{tr("We couldn't load this profile. It may no longer be available.")}</Text>
           <View style={{ height: 14 }} />
-          <Button title="Try again" variant="outline" onPress={() => refetch()} />
+          <Button title={tr("Try again")} variant="outline" onPress={() => refetch()} />
         </View>
       </Screen>
     );
@@ -75,7 +89,7 @@ export function ProfileDetailScreen() {
   if (isLoading || !detail) {
     return (
       <Screen>
-        <Header title="Profile" onBack={() => navigation.goBack()} />
+        <Header title={tr("Profile")} onBack={() => navigation.goBack()} />
         <View style={styles.loading}>
           <ActivityIndicator color={colors.primary} />
         </View>
@@ -142,7 +156,7 @@ export function ProfileDetailScreen() {
 
   const onSendInterest = () => {
     sendInterest.mutate(profileId, {
-      onSuccess: () => showToast(`Interest sent to ${detail.name}.`),
+      onSuccess: () => setCelebrate(true),
       onError: (err) => {
         if (err instanceof ApiError && err.body?.error === 'subscription_required') {
           navigation.navigate('Pricing', { returnTo: 'detail', pendingInterestProfileId: profileId });
@@ -156,22 +170,22 @@ export function ProfileDetailScreen() {
   const actionArea = (
     <>
       {detail.interestStatus === 'none' || detail.interestStatus === 'declined' ? (
-        <Button title="Send interest" onPress={onSendInterest} loading={sendInterest.isPending} />
+        <Button title={tr("Send interest")} onPress={onSendInterest} loading={sendInterest.isPending} />
       ) : null}
       {detail.interestStatus === 'sent' ? (
         <View style={styles.statusBox}>
-          <Text style={styles.statusText}>⏳ Interest sent — awaiting response</Text>
+          <Text style={styles.statusText}>{tr("⏳ Interest sent — awaiting response")}</Text>
         </View>
       ) : null}
       {detail.interestStatus === 'accepted' ? (
         <Button
-          title="Message"
+          title={tr("Message")}
           onPress={() => navigation.navigate('ChatThread', { userId: profileId, name: detail.name })}
         />
       ) : null}
       {detail.interestStatus === 'received' ? (
         <View style={styles.statusBox}>
-          <Text style={styles.statusText}>💌 They are interested in you — reply from Requests › Received</Text>
+          <Text style={styles.statusText}>{tr("💌 They are interested in you — reply from Requests › Received")}</Text>
         </View>
       ) : null}
     </>
@@ -182,19 +196,18 @@ export function ProfileDetailScreen() {
       <Header
         title={detail.name}
         onBack={() => navigation.goBack()}
-        right={<Button title="Block" variant="text" onPress={onBlock} />}
+        right={<Button title={tr("Block")} variant="text" onPress={onBlock} />}
       />
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Hero */}
         <View style={styles.hero}>
           <View style={styles.photoWrap}>
-            {photoUnlocked ? (
-              <Image source={{ uri: resolvePhotoUrl(detail.photoUrl)! }} style={styles.photoImage} />
-            ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </View>
-            )}
+            <GenderAvatar
+              gender={myGender === 'groom' ? 'bride' : 'groom'}
+              size={120}
+              photoUrl={photoUnlocked ? detail.photoUrl : null}
+              locked={!photoUnlocked}
+            />
           </View>
           <Text style={styles.name}>
             {detail.name}, {detail.age}
@@ -202,7 +215,7 @@ export function ProfileDetailScreen() {
           {detail.city ? <Text style={styles.heroMeta}>📍 {detail.city}</Text> : null}
           <View style={[styles.scorePill, { backgroundColor: good ? colors.greenBg : colors.lowBg }]}>
             <Text style={[styles.scoreText, { color: good ? colors.greenText : colors.lowText }]}>
-              {detail.score}% compatible
+              {detail.score}{tr("% compatible")}
             </Text>
           </View>
           <View style={styles.tagRow}>
@@ -222,9 +235,9 @@ export function ProfileDetailScreen() {
         {/* §8.4 — explicit photo consent, on top of (not instead of) the subscribed+accepted gate. */}
         {!locked && !photoUnlocked ? (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>📷 Profile photo</Text>
+            <Text style={styles.cardTitle}>{tr("📷 Profile photo")}</Text>
             {photoAccessStatus === 'pending' ? (
-              <Text style={styles.cardText}>Photo request sent — awaiting response.</Text>
+              <Text style={styles.cardText}>{tr("Photo request sent — awaiting response.")}</Text>
             ) : (
               <>
                 <Text style={[styles.cardText, { marginBottom: 12 }]}>
@@ -250,10 +263,10 @@ export function ProfileDetailScreen() {
 
         {detail.incomingPhotoRequest?.status === 'pending' ? (
           <View style={styles.card}>
-            <Text style={styles.cardText}>{detail.name} has asked to view your profile photo.</Text>
+            <Text style={styles.cardText}>{detail.name}{" "}{tr("has asked to view your profile photo.")}</Text>
             <View style={[styles.actions, { marginTop: 12 }]}>
               <Button
-                title="Accept"
+                title={tr("Accept")}
                 variant="small-primary"
                 onPress={() =>
                   acceptPhotoRequest.mutate(detail.incomingPhotoRequest!.id, {
@@ -263,7 +276,7 @@ export function ProfileDetailScreen() {
                 }
               />
               <Button
-                title="Reject"
+                title={tr("Reject")}
                 variant="small-outline"
                 onPress={() =>
                   rejectPhotoRequest.mutate(detail.incomingPhotoRequest!.id, {
@@ -278,11 +291,11 @@ export function ProfileDetailScreen() {
         {sections.map((sec) => (
           <View key={sec.title} style={styles.card}>
             <Text style={styles.cardTitle}>
-              {sec.icon} {sec.title}
+              {sec.icon} {tr(sec.title)}
             </Text>
             {sec.fields.map((f, i) => (
               <View key={f.label} style={[styles.fieldRow, i === 0 && { borderTopWidth: 0, paddingTop: 0 }]}>
-                <Text style={styles.fieldLabel}>{f.label}</Text>
+                <Text style={styles.fieldLabel}>{tr(f.label)}</Text>
                 <Text style={styles.fieldValue}>{f.value || '—'}</Text>
               </View>
             ))}
@@ -290,7 +303,7 @@ export function ProfileDetailScreen() {
         ))}
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>📞 Contact details</Text>
+          <Text style={styles.cardTitle}>{tr("📞 Contact details")}</Text>
           {detail.contact ? (
             <>
               <Text style={styles.fieldValue}>{detail.contact.phone}</Text>
@@ -299,7 +312,7 @@ export function ProfileDetailScreen() {
           ) : (
             <>
               <Text style={[styles.fieldValue, { opacity: 0.45 }]}>+91 •• •••• ••••</Text>
-              <Text style={styles.cardText}>Unlocks after an active subscription and a mutual accepted interest.</Text>
+              <Text style={styles.cardText}>{tr("Unlocks after an active subscription and a mutual accepted interest.")}</Text>
             </>
           )}
         </View>
@@ -308,7 +321,7 @@ export function ProfileDetailScreen() {
           <ShieldIcon color={colors.greenText} />
           <View style={{ flex: 1 }}>
             <Text style={styles.guardianText}>
-              Guardian (Wali): <Text style={{ fontFamily: fonts.extraBold }}>{detail.wali || '—'}</Text>
+              {tr("Guardian (Wali):")}{" "}<Text style={{ fontFamily: fonts.extraBold }}>{detail.wali || '—'}</Text>
             </Text>
             <Text style={styles.cardText}>{guardianNoteText}</Text>
           </View>
@@ -316,6 +329,22 @@ export function ProfileDetailScreen() {
 
         <View style={styles.actionBottom}>{actionArea}</View>
       </ScrollView>
+      {celebrate ? (
+        <View style={styles.celebrateWrap} pointerEvents="none">
+          <Animated.View
+            style={[
+              styles.celebrateCard,
+              { opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] },
+            ]}
+          >
+            <Text style={styles.celebrateIcon}>💌</Text>
+            <Text style={styles.celebrateTitle}>{tr("Interest sent!")}</Text>
+            <Text style={styles.celebrateText}>
+              {tr("We'll let you know when")}{" "}{detail.name}{" "}{tr("replies. May Allah make it easy.")}
+            </Text>
+          </Animated.View>
+        </View>
+      ) : null}
     </Screen>
   );
 }
@@ -388,5 +417,29 @@ const styles = themedStyles(() =>
     statusBox: { padding: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
     statusText: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink, textAlign: 'center' },
     actions: { flexDirection: 'row', gap: 8 },
+    celebrateWrap: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0,0,0,0.25)',
+    },
+    celebrateCard: {
+      width: '85%',
+      maxWidth: 360,
+      backgroundColor: colors.card,
+      borderRadius: 20,
+      padding: 24,
+      alignItems: 'center',
+      gap: 6,
+      borderWidth: 2,
+      borderColor: colors.accent,
+    },
+    celebrateIcon: { fontSize: 48 },
+    celebrateTitle: { fontFamily: fonts.extraBold, fontSize: 20, color: colors.ink },
+    celebrateText: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   })
 );

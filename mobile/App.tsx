@@ -22,6 +22,7 @@ import { Toast } from './src/components/Toast';
 import { colors, themedStyles } from './src/theme/tokens';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import { applyDocumentDirection } from './src/i18n/t';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 const linking: LinkingOptions<RootStackParamList> = {
@@ -65,9 +66,12 @@ const linking: LinkingOptions<RootStackParamList> = {
 // stays on the same screen.
 function ThemedNavigation() {
   const { mode, colors: themeColors } = useTheme();
+  const lang = useAuthStore((s) => (s.user?.language === 'ur' ? 'ur' : 'en'));
   const navState = useRef<any>(undefined);
+  // Urdu reads right-to-left: flip the page direction, and remount so every screen re-reads text.
+  applyDocumentDirection(lang);
   return (
-    <View key={mode} style={{ flex: 1, backgroundColor: themeColors.bg }}>
+    <View key={`${mode}-${lang}`} style={{ flex: 1, backgroundColor: themeColors.bg }}>
       <NavigationContainer
         linking={linking}
         initialState={navState.current}

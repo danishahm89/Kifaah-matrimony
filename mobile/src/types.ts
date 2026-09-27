@@ -88,6 +88,8 @@ export interface DiscoverCandidate {
   eduProf: string;
   score: number;
   photoLocked: true;
+  // Only sent once the member's photo request was approved.
+  photoUrl?: string | null;
 }
 
 // CONTRACT.md §8.4 — status of *my* request to see this profile's photo.

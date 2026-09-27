@@ -1,4 +1,5 @@
 import { Alert as RNAlert, Platform } from 'react-native';
+import { tr } from '../i18n/t';
 import type { AlertButton } from 'react-native';
 
 // react-native-web ships Alert.alert as an empty function, so every confirm dialog in the app
@@ -38,7 +39,10 @@ function webAlert(title: string, message?: string, buttons?: AlertButton[]) {
 }
 
 export const Alert = {
-  alert(title: string, message?: string, buttons?: AlertButton[]) {
+  alert(rawTitle: string, rawMessage?: string, rawButtons?: AlertButton[]) {
+    const title = tr(rawTitle);
+    const message = rawMessage ? tr(rawMessage) : rawMessage;
+    const buttons = rawButtons?.map((b) => ({ ...b, text: b.text ? tr(b.text) : b.text }));
     if (Platform.OS === 'web') {
       webAlert(title, message, buttons);
       return;

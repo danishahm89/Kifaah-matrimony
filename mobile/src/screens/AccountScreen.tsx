@@ -1,4 +1,5 @@
 import React from 'react';
+import { tr } from '../i18n/t';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Alert } from '../utils/alert';
 import { useNavigation } from '@react-navigation/native';
@@ -37,7 +38,7 @@ function resolveOther(profile: Profile | undefined, field: 'diet' | 'habits' | '
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.summaryRow}>
-      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryLabel}>{tr(label)}</Text>
       <Text style={styles.summaryValue}>{value}</Text>
     </View>
   );
@@ -92,8 +93,8 @@ export function AccountScreen() {
         </View>
 
         <View style={[styles.card, { backgroundColor: subscribed ? colors.lowBg : colors.surface }]}>
-          <Text style={styles.eyebrow}>Subscription</Text>
-          <Text style={styles.planStatus}>{planStatusLabel}</Text>
+          <Text style={styles.eyebrow}>{tr("Subscription")}</Text>
+          <Text style={styles.planStatus}>{tr(planStatusLabel)}</Text>
           <Button
             title={subscribed ? 'Manage plan' : 'Subscribe now'}
             variant="text"
@@ -103,52 +104,52 @@ export function AccountScreen() {
         </View>
 
         <View>
-          <Text style={styles.sectionLabel}>Shariah preferences</Text>
+          <Text style={styles.sectionLabel}>{tr("Shariah preferences")}</Text>
           <View style={styles.summaryList}>
-            <Row label="Sect" value={profile?.sect || '—'} />
-            <Row label="Prayer" value={profile?.prayer || '—'} />
+            <Row label={tr("Sect")} value={profile?.sect || '—'} />
+            <Row label={tr("Prayer")} value={profile?.prayer || '—'} />
             <Row label={modestyQuestion} value={profile?.modesty || '—'} />
-            <Row label="Fasting" value={profile?.fasting || '—'} />
-            <Row label="Qur'an" value={profile?.quran || '—'} />
-            <Row label="Hajj / Umrah" value={profile?.hajj || '—'} />
+            <Row label={tr("Fasting")} value={profile?.fasting || '—'} />
+            <Row label={tr("Qur'an")} value={profile?.quran || '—'} />
+            <Row label={tr("Hajj / Umrah")} value={profile?.hajj || '—'} />
             <Row label={polygamyQuestion} value={profile?.polygamy || '—'} />
             <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
-              <Text style={styles.summaryLabel}>Wali</Text>
+              <Text style={styles.summaryLabel}>{tr("Wali")}</Text>
               <Text style={styles.summaryValue}>{profile?.wali || '—'}</Text>
             </View>
           </View>
         </View>
 
         <View>
-          <Text style={styles.sectionLabel}>Lifestyle</Text>
+          <Text style={styles.sectionLabel}>{tr("Lifestyle")}</Text>
           <View style={styles.summaryList}>
-            <Row label="Diet" value={resolveOther(profile, 'diet')} />
-            <Row label="Smoking" value={profile?.smoking || '—'} />
-            <Row label="Habits" value={resolveOther(profile, 'habits')} />
-            <Row label="Likes" value={resolveOther(profile, 'likes')} />
+            <Row label={tr("Diet")} value={resolveOther(profile, 'diet')} />
+            <Row label={tr("Smoking")} value={profile?.smoking || '—'} />
+            <Row label={tr("Habits")} value={resolveOther(profile, 'habits')} />
+            <Row label={tr("Likes")} value={resolveOther(profile, 'likes')} />
             <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
-              <Text style={styles.summaryLabel}>Dislikes</Text>
+              <Text style={styles.summaryLabel}>{tr("Dislikes")}</Text>
               <Text style={styles.summaryValue}>{resolveOther(profile, 'dislikes')}</Text>
             </View>
           </View>
         </View>
 
-        <Button title="Help & Support" variant="outline" onPress={() => navigation.navigate('Support')} />
-        <Button title="Frequently asked questions" variant="outline" onPress={() => navigation.navigate('FAQ')} />
+        <Button title={tr("Help & Support")} variant="outline" onPress={() => navigation.navigate('Support')} />
+        <Button title={tr("Frequently asked questions")} variant="outline" onPress={() => navigation.navigate('FAQ')} />
         {/* Internal tools: the Admin panel still runs on mock data, so keep both out of the
             member-facing app. They stay reachable at /health and /admin for the team. */}
         {__DEV__ ? (
           <>
-            <Button title="App Health & Logs" variant="outline" onPress={() => navigation.navigate('Health')} />
-            <Button title="Admin Panel" variant="outline" onPress={() => navigation.navigate('Admin')} />
+            <Button title={tr("App Health & Logs")} variant="outline" onPress={() => navigation.navigate('Health')} />
+            <Button title={tr("Admin Panel")} variant="outline" onPress={() => navigation.navigate('Admin')} />
           </>
         ) : null}
 
         {/* CONTRACT.md §8.3 — blocked users list, block date, revocable with its own confirmation. */}
         <View>
-          <Text style={styles.sectionLabel}>Blocked users</Text>
+          <Text style={styles.sectionLabel}>{tr("Blocked users")}</Text>
           {blockedUsers.length === 0 ? (
-            <Text style={styles.engineBody}>You haven't blocked anyone.</Text>
+            <Text style={styles.engineBody}>{tr("You haven't blocked anyone.")}</Text>
           ) : (
             <View style={styles.summaryList}>
               {blockedUsers.map((item) => (
@@ -158,9 +159,9 @@ export function AccountScreen() {
                       {item.name}
                       {item.city ? ` · ${item.city}` : ''}
                     </Text>
-                    <Text style={styles.blockedDate}>Blocked {new Date(item.createdAt).toLocaleDateString()}</Text>
+                    <Text style={styles.blockedDate}>{tr("Blocked")}{" "}{new Date(item.createdAt).toLocaleDateString()}</Text>
                   </View>
-                  <Button title="Unblock" variant="small-outline" onPress={() => confirmUnblock(item)} />
+                  <Button title={tr("Unblock")} variant="small-outline" onPress={() => confirmUnblock(item)} />
                 </View>
               ))}
             </View>
@@ -168,13 +169,12 @@ export function AccountScreen() {
         </View>
 
         <View style={styles.engineBox}>
-          <Text style={styles.eyebrow}>Match engine</Text>
+          <Text style={styles.eyebrow}>{tr("Match engine")}</Text>
           <Text style={styles.engineBody}>
-            Runs automatically once a week, scoring on location, sect, profession and religious practice.
-            Already-matched, rejected or pending profiles are never repeated.
+            {tr("Runs automatically once a week, scoring on location, sect, profession and religious practice. Already-matched, rejected or pending profiles are never repeated.")}
           </Text>
           <Button
-            title="Run this week's refresh now (demo)"
+            title={tr("Run this week's refresh now (demo)")}
             variant="outline"
             style={styles.engineBtn}
             loading={runEngine.isPending}
@@ -193,7 +193,7 @@ export function AccountScreen() {
         </View>
 
         <Button
-          title="Log out"
+          title={tr("Log out")}
           variant="outline"
           onPress={() => logout.mutate()}
           loading={logout.isPending}

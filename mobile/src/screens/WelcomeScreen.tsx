@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { tr } from '../i18n/t';
 import {
   Animated,
   Modal,
@@ -185,14 +186,13 @@ export function WelcomeScreen() {
               <View style={styles.logoWrap}>
                 <KifaahLogo size={88} />
               </View>
-              <Text style={[styles.brand, { color: themeColors.ink }]}>KIFAAH</Text>
+              <Text style={[styles.brand, { color: themeColors.ink }]}>{tr("KIFAAH")}</Text>
               <View style={[styles.rule, { backgroundColor: themeColors.accent }]} />
               <Text style={[styles.eyebrow, { color: themeColors.primary }]}>
-                ISLAMIC MATRIMONY · SHARIAH-GUIDED
+                {tr("ISLAMIC MATRIMONY · SHARIAH-GUIDED")}
               </Text>
               <Text style={[styles.intro, { color: themeColors.muted }]}>
-                Find your ideal match through a platform built on Islamic values
-                — Shariah-guided, guardian-aware, and privacy-first.
+                {tr("Find your ideal match through a platform built on Islamic values — Shariah-guided, guardian-aware, and privacy-first.")}
               </Text>
               <View style={styles.featurePills}>
                 {['Shariah-Guided', 'Privacy-First', 'Wali System', 'Serious Matches'].map(lbl => (
@@ -205,7 +205,7 @@ export function WelcomeScreen() {
 
             {notice ? <Text style={[styles.error, { color: themeColors.red }]}>{notice}</Text> : null}
 
-            <Text style={[styles.pickLabel, { color: themeColors.muted }]}>I AM A</Text>
+            <Text style={[styles.pickLabel, { color: themeColors.muted }]}>{tr("I AM A")}</Text>
 
               <Pressable
                 style={[styles.roleCard, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border, shadowColor: themeColors.shadow }]}
@@ -215,14 +215,14 @@ export function WelcomeScreen() {
                   <Text style={styles.roleEmoji}>🧔</Text>
                 </View>
                 <View style={styles.roleInfo}>
-                  <Text style={[styles.roleTitle, { color: themeColors.ink }]}>I am a Brother</Text>
-                  <Text style={[styles.roleSubtitle, { color: themeColors.muted }]}>Looking for a righteous sister</Text>
+                  <Text style={[styles.roleTitle, { color: themeColors.ink }]}>{tr("I am a Brother")}</Text>
+                  <Text style={[styles.roleSubtitle, { color: themeColors.muted }]}>{tr("Looking for a righteous sister")}</Text>
                   <View style={styles.roleTags}>
                     <View style={[styles.roleTag, { backgroundColor: themeColors.greenBg }]}>
-                    <Text style={[styles.roleTagText, { color: themeColors.primary }]}>Serious Intent</Text>
+                    <Text style={[styles.roleTagText, { color: themeColors.primary }]}>{tr("Serious Intent")}</Text>
                     </View>
                     <View style={[styles.roleTag, { backgroundColor: themeColors.greenBg }]}>
-                    <Text style={[styles.roleTagText, { color: themeColors.primary }]}>Wali Approved</Text>
+                    <Text style={[styles.roleTagText, { color: themeColors.primary }]}>{tr("Wali Approved")}</Text>
                     </View>
                   </View>
                 </View>
@@ -239,14 +239,14 @@ export function WelcomeScreen() {
                   <Text style={styles.roleEmoji}>🧕</Text>
                 </View>
                 <View style={styles.roleInfo}>
-                  <Text style={[styles.roleTitle, { color: themeColors.ink }]}>I am a Sister</Text>
-                  <Text style={[styles.roleSubtitle, { color: themeColors.muted }]}>Looking for a righteous brother</Text>
+                  <Text style={[styles.roleTitle, { color: themeColors.ink }]}>{tr("I am a Sister")}</Text>
+                  <Text style={[styles.roleSubtitle, { color: themeColors.muted }]}>{tr("Looking for a righteous brother")}</Text>
                   <View style={styles.roleTags}>
                     <View style={[styles.roleTag, { backgroundColor: '#fdf5e0' }]}>
-                    <Text style={[styles.roleTagText, { color: themeColors.accent }]}>Guardian Aware</Text>
+                    <Text style={[styles.roleTagText, { color: themeColors.accent }]}>{tr("Guardian Aware")}</Text>
                     </View>
                     <View style={[styles.roleTag, { backgroundColor: '#fdf5e0' }]}>
-                    <Text style={[styles.roleTagText, { color: themeColors.accent }]}>Blurred Photos</Text>
+                    <Text style={[styles.roleTagText, { color: themeColors.accent }]}>{tr("Blurred Photos")}</Text>
                     </View>
                   </View>
                 </View>
@@ -256,7 +256,7 @@ export function WelcomeScreen() {
               </Pressable>
 
             <Button
-              title="Already have an account? Log in"
+              title={tr("Already have an account? Log in")}
               variant="text"
               onPress={startLogin}
             />
@@ -264,13 +264,12 @@ export function WelcomeScreen() {
         ) : !otpSent ? (
           <View style={styles.authForm}>
             <Text style={[styles.authHint, { color: themeColors.muted }]}>
-              Enter your mobile number to continue.
-              We'll send a 6-digit verification code.
+              {tr("Enter your mobile number to continue. We'll send a 6-digit verification code.")}
             </Text>
 
             {/* Country picker */}
             <View style={styles.fieldWrap}>
-              <Text style={[styles.fieldLabel, { color: themeColors.muted }]}>COUNTRY</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.muted }]}>{tr("COUNTRY")}</Text>
               <Pressable
                 style={[styles.countryBtn, { backgroundColor: themeColors.inputBg, borderColor: themeColors.borderStrong }]}
                 onPress={() => setShowCountryPicker(true)}
@@ -288,7 +287,7 @@ export function WelcomeScreen() {
 
             {/* Phone number input */}
             <View style={styles.fieldWrap}>
-              <Text style={[styles.fieldLabel, { color: themeColors.muted }]}>MOBILE NUMBER</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.muted }]}>{tr("MOBILE NUMBER")}</Text>
               <View style={[styles.phoneRow, { backgroundColor: themeColors.inputBg, borderColor: themeColors.borderStrong }]}>
                 <Text style={[styles.phonePrefix, { color: themeColors.primary }]}>
                   {selectedCountry.code}
@@ -300,7 +299,7 @@ export function WelcomeScreen() {
                     const digits = t.replace(/\D/g, '').slice(0, 10);
                     setPhone(digits);
                   }}
-                  placeholder="10-digit number"
+                  placeholder={tr("10-digit number")}
                   placeholderTextColor={themeColors.subtle}
                   autoCapitalize="none"
                   keyboardType="phone-pad"
@@ -317,7 +316,7 @@ export function WelcomeScreen() {
             {errorMsg ? <Text style={[styles.error, { color: themeColors.red }]}>{errorMsg}</Text> : null}
 
             <Button
-              title="Send code"
+              title={tr("Send code")}
               onPress={submitPhone}
               loading={pending}
               disabled={phone.trim().length !== 10}
@@ -326,10 +325,10 @@ export function WelcomeScreen() {
         ) : (
           <View style={styles.authForm}>
             <Text style={[styles.authHint, { color: themeColors.muted }]}>
-              Enter the code sent to {selectedCountry.code + phone.trim()}.
+              {tr("Enter the code sent to")}{" "}{selectedCountry.code + phone.trim()}.
             </Text>
             <View style={styles.fieldWrap}>
-              <Text style={[styles.fieldLabel, { color: themeColors.muted }]}>6-DIGIT CODE</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.muted }]}>{tr("6-DIGIT CODE")}</Text>
               <TextInput
                 style={[styles.codeInput, { color: themeColors.ink, backgroundColor: themeColors.inputBg, borderColor: themeColors.borderStrong }]}
                 value={code}
@@ -343,9 +342,9 @@ export function WelcomeScreen() {
               />
             </View>
             {errorMsg ? <Text style={[styles.error, { color: themeColors.red }]}>{errorMsg}</Text> : null}
-            <Button title="Verify" onPress={submitCode} loading={pending} disabled={code.trim().length !== 6} />
+            <Button title={tr("Verify")} onPress={submitCode} loading={pending} disabled={code.trim().length !== 6} />
             <Button
-              title="Resend code"
+              title={tr("Resend code")}
               variant="text"
               onPress={() => sendOtp.mutate(fullPhone)}
               disabled={pending}
@@ -358,16 +357,16 @@ export function WelcomeScreen() {
       <Modal visible={showCountryPicker} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modalWrap, { backgroundColor: themeColors.bg }]}>
           <View style={[styles.modalHeader, { borderBottomColor: themeColors.border }]}>
-            <Text style={[styles.modalTitle, { color: themeColors.ink }]}>Select Country</Text>
+            <Text style={[styles.modalTitle, { color: themeColors.ink }]}>{tr("Select Country")}</Text>
             <Pressable onPress={() => { setShowCountryPicker(false); setCountrySearch(''); }}>
-              <Text style={[styles.modalClose, { color: themeColors.primary }]}>Done</Text>
+              <Text style={[styles.modalClose, { color: themeColors.primary }]}>{tr("Done")}</Text>
             </Pressable>
           </View>
           <TextInput
             style={[styles.searchInput, { color: themeColors.ink, backgroundColor: themeColors.inputBg, borderColor: themeColors.border }]}
             value={countrySearch}
             onChangeText={setCountrySearch}
-            placeholder="Search country..."
+            placeholder={tr("Search country...")}
             placeholderTextColor={themeColors.subtle}
           />
           <FlatList

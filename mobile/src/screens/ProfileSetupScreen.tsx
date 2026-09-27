@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tr } from '../i18n/t';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as ImagePicker from 'expo-image-picker';
@@ -120,7 +121,7 @@ export function ProfileSetupScreen() {
   if (isLoading || !ref) {
     return (
       <Screen>
-        <Header title="Your profile" onBack={() => navigation.navigate('ShariahQA')} />
+        <Header title={tr("Your profile")} onBack={() => navigation.navigate('ShariahQA')} />
         <View style={styles.loading}>
           <ActivityIndicator color={colors.red} />
         </View>
@@ -132,7 +133,7 @@ export function ProfileSetupScreen() {
 
   return (
     <Screen>
-      <Header title="Your profile" onBack={() => navigation.navigate('ShariahQA')} />
+      <Header title={tr("Your profile")} onBack={() => navigation.navigate('ShariahQA')} />
       <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -142,11 +143,11 @@ export function ProfileSetupScreen() {
       >
         <View style={styles.sideBySide}>
           <View style={styles.flex1}>
-            <FieldLabel>Full name</FieldLabel>
-            <TextField value={draft.name ?? ''} onChangeText={(v) => setField('name', v)} placeholder="As shown to other members" />
+            <FieldLabel>{tr("Full name")}</FieldLabel>
+            <TextField value={draft.name ?? ''} onChangeText={(v) => setField('name', v)} placeholder={tr("As shown to other members")} />
           </View>
           <View style={styles.flex1}>
-            <FieldLabel>Age</FieldLabel>
+            <FieldLabel>{tr("Age")}</FieldLabel>
             <TextField
               value={draft.age != null ? String(draft.age) : ''}
               onChangeText={(v) => setField('age', v.replace(/[^0-9]/g, '') ? Number(v.replace(/[^0-9]/g, '')) : undefined)}
@@ -157,7 +158,7 @@ export function ProfileSetupScreen() {
         </View>
 
         <View>
-          <FieldLabel>Photo</FieldLabel>
+          <FieldLabel>{tr("Photo")}</FieldLabel>
           <Pressable style={styles.photoBox} onPress={pickPhoto}>
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photoImage} />
@@ -165,7 +166,7 @@ export function ProfileSetupScreen() {
               <>
                 <StripePattern />
                 <View style={styles.photoOverlay}>
-                  <Text style={styles.photoText}>DROP{'\n'}PHOTO</Text>
+                  <Text style={styles.photoText}>{tr("DROP")}{'\n'}{tr("PHOTO")}</Text>
                 </View>
               </>
             )}
@@ -175,37 +176,37 @@ export function ProfileSetupScreen() {
               </View>
             ) : null}
           </Pressable>
-          <Text style={styles.photoNote}>Stays blurred to everyone else until they subscribe and you accept their interest.</Text>
+          <Text style={styles.photoNote}>{tr("Stays blurred to everyone else until they subscribe and you accept their interest.")}</Text>
           {photoErrorMessage ? <Text style={styles.error}>{photoErrorMessage}</Text> : null}
         </View>
 
         <View>
-          <FieldLabel>Education &amp; profession</FieldLabel>
+          <FieldLabel>{tr("Education & profession")}</FieldLabel>
           <SelectField value={draft.eduProf ?? ''} options={ref.eduProfOptions} onChange={onEduProfChange} />
         </View>
 
         <View>
-          <FieldLabel>Family background</FieldLabel>
+          <FieldLabel>{tr("Family background")}</FieldLabel>
           <TextField
             value={draft.family ?? ''}
             onChangeText={(v) => setField('family', v)}
-            placeholder="e.g. Middle-class, one married sister"
+            placeholder={tr("e.g. Middle-class, one married sister")}
           />
         </View>
 
         <View style={styles.sideBySide}>
           <View style={styles.flex1}>
-            <FieldLabel>Height</FieldLabel>
+            <FieldLabel>{tr("Height")}</FieldLabel>
             <SelectField value={draft.height ?? ''} options={ref.heights} onChange={(v) => setField('height', v)} />
           </View>
           <View style={styles.flex1}>
-            <FieldLabel>Location / city</FieldLabel>
+            <FieldLabel>{tr("Location / city")}</FieldLabel>
             <SelectField value={draft.city ?? ''} options={[...ref.cities, OTHER_CITY]} onChange={onCityChange} />
             {customCityMode ? (
               <TextField
                 value={draft.city ?? ''}
                 onChangeText={(v) => setField('city', v)}
-                placeholder="Type your city"
+                placeholder={tr("Type your city")}
                 style={{ marginTop: 8 }}
               />
             ) : null}
@@ -213,66 +214,66 @@ export function ProfileSetupScreen() {
         </View>
 
         <View>
-          <FieldLabel>Marital status</FieldLabel>
+          <FieldLabel>{tr("Marital status")}</FieldLabel>
           <SegmentRow options={asOptions(ref.maritalOptions)} value={draft.marital ?? ''} onChange={(v) => setField('marital', v)} />
         </View>
 
         <View style={styles.sectionDivider}>
-          <Text style={styles.sectionLabel}>Lifestyle &amp; habits</Text>
+          <Text style={styles.sectionLabel}>{tr("Lifestyle & habits")}</Text>
         </View>
 
         <View>
-          <FieldLabel>Diet</FieldLabel>
+          <FieldLabel>{tr("Diet")}</FieldLabel>
           <SelectField value={draft.diet ?? ''} options={ref.dietOptions} onChange={(v) => setField('diet', v)} />
           {draft.diet === OTHER_SPECIFY ? (
             <TextField
               value={draft.dietCustom ?? ''}
               onChangeText={(v) => setField('dietCustom', v)}
-              placeholder="Describe your diet"
+              placeholder={tr("Describe your diet")}
               style={{ marginTop: 8 }}
             />
           ) : null}
         </View>
 
         <View>
-          <FieldLabel>Smoking</FieldLabel>
+          <FieldLabel>{tr("Smoking")}</FieldLabel>
           <SegmentRow options={asOptions(ref.smokingOptions)} value={draft.smoking ?? ''} onChange={(v) => setField('smoking', v)} />
         </View>
 
         <View>
-          <FieldLabel>Habits</FieldLabel>
+          <FieldLabel>{tr("Habits")}</FieldLabel>
           <SelectField value={draft.habits ?? ''} options={ref.habitsOptions} onChange={(v) => setField('habits', v)} />
           {draft.habits === OTHER_SPECIFY ? (
             <TextField
               value={draft.habitsCustom ?? ''}
               onChangeText={(v) => setField('habitsCustom', v)}
-              placeholder="Describe your habits"
+              placeholder={tr("Describe your habits")}
               style={{ marginTop: 8 }}
             />
           ) : null}
         </View>
 
         <View>
-          <FieldLabel>Likes</FieldLabel>
+          <FieldLabel>{tr("Likes")}</FieldLabel>
           <SelectField value={draft.likes ?? ''} options={ref.likesOptions} onChange={(v) => setField('likes', v)} />
           {draft.likes === OTHER_SPECIFY ? (
             <TextField
               value={draft.likesCustom ?? ''}
               onChangeText={(v) => setField('likesCustom', v)}
-              placeholder="Describe what you like"
+              placeholder={tr("Describe what you like")}
               style={{ marginTop: 8 }}
             />
           ) : null}
         </View>
 
         <View>
-          <FieldLabel>Dislikes</FieldLabel>
+          <FieldLabel>{tr("Dislikes")}</FieldLabel>
           <SelectField value={draft.dislikes ?? ''} options={ref.dislikesOptions} onChange={(v) => setField('dislikes', v)} />
           {draft.dislikes === OTHER_SPECIFY ? (
             <TextField
               value={draft.dislikesCustom ?? ''}
               onChangeText={(v) => setField('dislikesCustom', v)}
-              placeholder="Describe your dislikes"
+              placeholder={tr("Describe your dislikes")}
               style={{ marginTop: 8 }}
             />
           ) : null}
@@ -280,9 +281,9 @@ export function ProfileSetupScreen() {
 
         <View>
           <View style={styles.aboutHeader}>
-            <FieldLabel>About me / what I'm looking for</FieldLabel>
+            <FieldLabel>{tr("About me / what I'm looking for")}</FieldLabel>
             <Button
-              title="Suggest for me"
+              title={tr("Suggest for me")}
               variant="text"
               onPress={() => setField('about', SUGGEST_ABOUT[gender])}
             />
@@ -290,14 +291,14 @@ export function ProfileSetupScreen() {
           <TextField
             value={draft.about ?? ''}
             onChangeText={(v) => setField('about', v)}
-            placeholder="A few lines about you and what you're looking for in a partner."
+            placeholder={tr("A few lines about you and what you're looking for in a partner.")}
             multiline
             numberOfLines={4}
           />
         </View>
 
         {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
-          <Button title="Enter Kifaah" onPress={finish} loading={updateProfile.isPending} style={styles.finishBtn} />
+          <Button title={tr("Enter Kifaah")} onPress={finish} loading={updateProfile.isPending} style={styles.finishBtn} />
       </KeyboardAwareScrollView>
     </Screen>
   );

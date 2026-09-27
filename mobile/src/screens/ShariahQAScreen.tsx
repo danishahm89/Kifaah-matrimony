@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tr } from '../i18n/t';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useNavigation } from '@react-navigation/native';
@@ -34,7 +35,7 @@ export function ShariahQAScreen() {
   if (isLoading || !ref) {
     return (
       <Screen>
-        <Header title="Shariah compliance" onBack={() => navigation.navigate('Welcome')} />
+        <Header title={tr("Shariah compliance")} onBack={() => navigation.navigate('Welcome')} />
         <View style={styles.loading}>
           <ActivityIndicator color={colors.red} />
         </View>
@@ -46,7 +47,7 @@ export function ShariahQAScreen() {
 
   return (
     <Screen>
-      <Header title="Shariah compliance" onBack={() => navigation.navigate('Welcome')} />
+      <Header title={tr("Shariah compliance")} onBack={() => navigation.navigate('Welcome')} />
       <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -54,15 +55,15 @@ export function ShariahQAScreen() {
         extraScrollHeight={24}
         keyboardOpeningTime={0}
       >
-        <Text style={styles.intro}>A few questions so matches are compatible in practice, not just on paper.</Text>
+        <Text style={styles.intro}>{tr("A few questions so matches are compatible in practice, not just on paper.")}</Text>
 
         <View>
-          <FieldLabel>Sect / Madhab</FieldLabel>
+          <FieldLabel>{tr("Sect / Madhab")}</FieldLabel>
           <SelectField value={draft.sect ?? ''} options={ref.sects} onChange={(v) => setField('sect', v)} />
         </View>
 
         <View>
-          <FieldLabel>Prayer (Salah) regularity</FieldLabel>
+          <FieldLabel>{tr("Prayer (Salah) regularity")}</FieldLabel>
           <SegmentRow options={asOptions(ref.prayerOptions)} value={draft.prayer ?? ''} onChange={(v) => setField('prayer', v)} wrap={false} />
         </View>
 
@@ -87,31 +88,31 @@ export function ShariahQAScreen() {
         )}
         {gender !== 'groom' && (
         <View>
-          <FieldLabel>Wali / guardian's name{waliRequired ? '' : ' (optional)'}</FieldLabel>
+          <FieldLabel>{tr("Wali / guardian's name")}{waliRequired ? '' : ' (optional)'}</FieldLabel>
           <TextField
             value={draft.wali ?? ''}
             onChangeText={(v) => {
               setField('wali', v);
               if (waliError) setWaliError(null);
             }}
-            placeholder="e.g. Father — Abdul Kareem"
+            placeholder={tr("e.g. Father — Abdul Kareem")}
           />
           {waliError ? <Text style={styles.error}>{waliError}</Text> : null}
         </View>
         )}
 
         <View>
-          <FieldLabel>Fasting (Ramadan & voluntary)</FieldLabel>
+          <FieldLabel>{tr("Fasting (Ramadan & voluntary)")}</FieldLabel>
           <SegmentRow options={asOptions(ref.fastingOptions)} value={draft.fasting ?? ''} onChange={(v) => setField('fasting', v)} />
         </View>
 
         <View>
-          <FieldLabel>Qur'an recitation</FieldLabel>
+          <FieldLabel>{tr("Qur'an recitation")}</FieldLabel>
           <SegmentRow options={asOptions(ref.quranOptions)} value={draft.quran ?? ''} onChange={(v) => setField('quran', v)} />
         </View>
 
         <View>
-          <FieldLabel>Hajj / Umrah</FieldLabel>
+          <FieldLabel>{tr("Hajj / Umrah")}</FieldLabel>
           <SegmentRow options={asOptions(ref.hajjOptions)} value={draft.hajj ?? ''} onChange={(v) => setField('hajj', v)} />
         </View>
 
@@ -125,7 +126,7 @@ export function ShariahQAScreen() {
         </View>
 
           <Button
-            title="Continue"
+            title={tr("Continue")}
             onPress={() => {
               // Fixed/required only on the bride side (§8.7) — the backend rejects an explicit
               // blank with a bare "invalid_input", so catch it here with an actionable message

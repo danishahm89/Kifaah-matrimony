@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { GenderAvatar } from '../components/GenderAvatar';
+import { tr } from '../i18n/t';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Alert } from '../utils/alert';
 import { useNavigation } from '@react-navigation/native';
@@ -8,7 +10,6 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Screen } from '../components/Screen';
 import { TabHeader } from '../components/TabHeader';
 import { SegmentRow } from '../components/SegmentRow';
-import { PlaceholderPhoto } from '../components/PlaceholderPhoto';
 import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
 import { colors, fonts, themedStyles } from '../theme/tokens';
@@ -31,6 +32,8 @@ export function MatchesScreen() {
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
   const [tab, setTab] = useState<'sent' | 'received'>('sent');
   const showToast = useToastStore((s) => s.show);
+  const myGender = useAuthStore((s) => s.user?.gender ?? 'bride');
+  const theirGender = myGender === 'groom' ? 'bride' : 'groom';
 
   const { data: me } = useMe(true);
   const subscribed = me?.subscription?.status === 'active';
@@ -72,8 +75,8 @@ export function MatchesScreen() {
     const matched = item.status === 'accepted';
     const chip = statusChip(item.status);
     return (
-      <Pressable style={styles.row} onPress={() => openDetail(item.toUserId)}>
-        <PlaceholderPhoto width={56} height={56} locked={!(matched && subscribed)} intensity={16} iconSize={14} />
+      <Pressable style={({ hovered, pressed }: any) => [styles.row, (hovered || pressed) && styles.rowActive]} onPress={() => openDetail(item.toUserId)}>
+        <GenderAvatar gender={theirGender} size={56} locked={!(matched && subscribed)} />
         <View style={styles.rowBody}>
           <Text style={styles.name}>
             {item.name}
@@ -83,10 +86,10 @@ export function MatchesScreen() {
         </View>
         <View style={styles.rowEnd}>
           <View style={[styles.chip, chip.bg]}>
-            <Text style={[styles.chipText, { color: chip.color }]}>{chip.label}</Text>
+            <Text style={[styles.chipText, { color: chip.color }]}>{tr(chip.label)}</Text>
           </View>
           {matched ? (
-            <Button title="Block" variant="text" onPress={() => confirmBlock(item.toUserId, item.name)} />
+            <Button title={tr("Block")} variant="text" onPress={() => confirmBlock(item.toUserId, item.name)} />
           ) : null}
         </View>
       </Pressable>
@@ -98,13 +101,13 @@ export function MatchesScreen() {
     const chip = statusChip(item.status);
     return (
       <View style={styles.row}>
-        <PlaceholderPhoto width={56} height={56} locked intensity={16} iconSize={14} />
+        <GenderAvatar gender={theirGender} size={56} locked />
         <View style={styles.rowBody}>
           <Text style={styles.name}>
             {item.name}
             {item.age ? `, ${item.age}` : ''}
           </Text>
-          <Text style={styles.meta}>{item.city} · sent you interest</Text>
+          <Text style={styles.meta}>{item.city}{" "}{tr("· sent you interest")}</Text>
         </View>
         {isPending ? (
           // Fix for task brief item 2: Accept/Decline only ever render for a still-`pending`
@@ -114,7 +117,7 @@ export function MatchesScreen() {
           // either way).
           <View style={styles.actions}>
             <Button
-              title="Accept"
+              title={tr("Accept")}
               variant="small-primary"
               onPress={() =>
                 accept.mutate(
@@ -131,7 +134,7 @@ export function MatchesScreen() {
               }
             />
             <Button
-              title="Decline"
+              title={tr("Decline")}
               variant="small-outline"
               onPress={() => decline.mutate({ id: item.id, profileId: item.fromUserId })}
             />
@@ -139,10 +142,10 @@ export function MatchesScreen() {
         ) : (
           <View style={styles.rowEnd}>
             <View style={[styles.chip, chip.bg]}>
-              <Text style={[styles.chipText, { color: chip.color }]}>{chip.label}</Text>
+              <Text style={[styles.chipText, { color: chip.color }]}>{tr(chip.label)}</Text>
             </View>
             {item.status === 'accepted' ? (
-              <Button title="Block" variant="text" onPress={() => confirmBlock(item.fromUserId, item.name)} />
+              <Button title={tr("Block")} variant="text" onPress={() => confirmBlock(item.fromUserId, item.name)} />
             ) : null}
           </View>
         )}
@@ -174,7 +177,7 @@ export function MatchesScreen() {
           onRefresh={sentQuery.refetch}
           ListEmptyComponent={
             !sentQuery.isLoading ? (
-              <EmptyState text="You haven't sent any interest yet. Browse Discover to find a match." />
+              <EmptyState text={tr("You haven't sent any interest yet. Browse Discover to find a match.")} />
             ) : null
           }
         />
@@ -185,7 +188,7 @@ export function MatchesScreen() {
           renderItem={renderReceived}
           refreshing={receivedQuery.isRefetching}
           onRefresh={receivedQuery.refetch}
-          ListEmptyComponent={!receivedQuery.isLoading ? <EmptyState text="No incoming interest right now." /> : null}
+          ListEmptyComponent={!receivedQuery.isLoading ? <EmptyState text={tr("No incoming interest right now.")} /> : null}
         />
       )}
     </Screen>
@@ -196,6 +199,9 @@ const styles = themedStyles(() => StyleSheet.create({
   tabsRow: {
     paddingHorizontal: 20,
     paddingTop: 14,
+  },
+  rowActive: {
+    backgroundColor: colors.greenBg,
   },
   row: {
     flexDirection: 'row',

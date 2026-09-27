@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tr } from '../i18n/t';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -32,10 +33,10 @@ export function PricingScreen() {
 
   return (
     <Screen>
-      <Header title="Membership" onBack={() => navigation.goBack()} />
+      <Header title={tr("Membership")} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.notice}>
-          Subscribe before viewing any photo or contact detail — every profile stays private until you do.
+          {tr("Subscribe before viewing any photo or contact detail — every profile stays private until you do.")}
         </Text>
 
         <SegmentRow
@@ -53,35 +54,35 @@ export function PricingScreen() {
         ) : (
           <>
             <View style={styles.card}>
-              <Text style={styles.tierName}>Basic</Text>
+              <Text style={styles.tierName}>{tr("Basic")}</Text>
               <Text style={styles.price}>
                 ₹{basicPrice}
                 <Text style={styles.priceSuffix}>{periodSuffix}</Text>
               </Text>
               <View style={styles.features}>
-                <Text style={styles.feature}>— Send interest requests</Text>
-                <Text style={styles.feature}>— View photo &amp; contact once matched</Text>
-                <Text style={styles.feature}>— Basic search filters</Text>
+                <Text style={styles.feature}>{tr("— Send interest requests")}</Text>
+                <Text style={styles.feature}>{tr("— View photo & contact once matched")}</Text>
+                <Text style={styles.feature}>{tr("— Basic search filters")}</Text>
               </View>
-              <Button title="Choose Basic" onPress={() => choose('basic')} align="center" style={styles.chooseBtn} />
+              <Button title={tr("Choose Basic")} onPress={() => choose('basic')} align="center" style={styles.chooseBtn} />
             </View>
 
             <View style={styles.card}>
               <View style={styles.premiumHeader}>
-                <Text style={styles.tierName}>Premium</Text>
-                <Text style={styles.mostChosen}>Most chosen</Text>
+                <Text style={styles.tierName}>{tr("Premium")}</Text>
+                <Text style={styles.mostChosen}>{tr("Most chosen")}</Text>
               </View>
               <Text style={styles.price}>
                 ₹{premiumPrice}
                 <Text style={styles.priceSuffix}>{periodSuffix}</Text>
               </Text>
               <View style={styles.features}>
-                <Text style={styles.feature}>— Everything in Basic</Text>
-                <Text style={styles.feature}>— See who's interested in you</Text>
-                <Text style={styles.feature}>— Priority placement in search</Text>
-                <Text style={styles.feature}>— Unlimited interest requests</Text>
+                <Text style={styles.feature}>{tr("— Everything in Basic")}</Text>
+                <Text style={styles.feature}>{tr("— See who's interested in you")}</Text>
+                <Text style={styles.feature}>{tr("— Priority placement in search")}</Text>
+                <Text style={styles.feature}>{tr("— Unlimited interest requests")}</Text>
               </View>
-              <Button title="Choose Premium" onPress={() => choose('premium')} align="center" style={styles.chooseBtn} />
+              <Button title={tr("Choose Premium")} onPress={() => choose('premium')} align="center" style={styles.chooseBtn} />
             </View>
           </>
         )}

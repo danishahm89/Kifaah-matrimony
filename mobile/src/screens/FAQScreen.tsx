@@ -1,4 +1,5 @@
 import React from 'react';
+import { tr } from '../i18n/t';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,7 +15,7 @@ export function FAQScreen() {
 
   return (
     <Screen>
-      <Header title="FAQs" onBack={() => navigation.goBack()} />
+      <Header title={tr("FAQs")} onBack={() => navigation.goBack()} />
       {isLoading ? (
         <View style={styles.loading}>
           <ActivityIndicator color={colors.red} />

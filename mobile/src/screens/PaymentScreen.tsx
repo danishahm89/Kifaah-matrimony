@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tr } from '../i18n/t';
 import { ActivityIndicator, Modal, StyleSheet, Text, View } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -156,25 +157,25 @@ export function PaymentScreen() {
 
   return (
     <Screen>
-      <Header title="Payment" onBack={() => navigation.goBack()} />
+      <Header title={tr("Payment")} onBack={() => navigation.goBack()} />
       <View style={styles.body}>
         <View style={styles.summaryCard}>
           <View>
             <Text style={styles.summaryTitle}>
               {tierLabel} · {billingLabel}
             </Text>
-            <Text style={styles.summaryNote}>Auto-renews, cancel anytime</Text>
+            <Text style={styles.summaryNote}>{tr("Auto-renews, cancel anytime")}</Text>
           </View>
           <Text style={styles.summaryAmount}>{displayAmount !== null ? `₹${displayAmount}` : '—'}</Text>
         </View>
 
         <View style={styles.payVia}>
-          <Text style={styles.eyebrow}>Pay via</Text>
+          <Text style={styles.eyebrow}>{tr("Pay via")}</Text>
           <Text style={styles.payViaNote}>
-            UPI, Card and Netbanking are all available in Razorpay's secure checkout.
+            {tr("UPI, Card and Netbanking are all available in Razorpay's secure checkout.")}
           </Text>
           <Text style={styles.securedNote}>
-            Processed securely by <Text style={{ fontFamily: fonts.extraBold }}>Razorpay</Text>
+            {tr("Processed securely by")}{" "}<Text style={{ fontFamily: fonts.extraBold }}>{tr("Razorpay")}</Text>
           </Text>
         </View>
 
@@ -183,7 +184,7 @@ export function PaymentScreen() {
         {processing && !checkoutHtml ? (
           <View style={styles.processingRow}>
             <ActivityIndicator color={colors.red} />
-            <Text style={styles.processingText}>Processing payment…</Text>
+            <Text style={styles.processingText}>{tr("Processing payment…")}</Text>
           </View>
         ) : (
           <Button
@@ -196,7 +197,7 @@ export function PaymentScreen() {
 
       <Modal visible={!!checkoutHtml} animationType="slide" onRequestClose={() => setCheckoutHtml(null)}>
         <Screen>
-          <Header title="Checkout" onBack={() => setCheckoutHtml(null)} />
+          <Header title={tr("Checkout")} onBack={() => setCheckoutHtml(null)} />
           {checkoutHtml ? (
             <WebView
               originWhitelist={['*']}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { tr } from '../i18n/t';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, themedStyles } from '../theme/tokens';
 
@@ -25,7 +26,7 @@ export function SegmentRow({ options, value, onChange, wrap = true }: Props) {
             onPress={() => onChange(opt.value)}
             style={[styles.seg, active ? styles.segOn : styles.segOff]}
           >
-            <Text style={[styles.text, { color: active ? colors.bg : colors.ink }]}>{opt.label}</Text>
+            <Text style={[styles.text, { color: active ? colors.bg : colors.ink }]}>{tr(opt.label)}</Text>
           </Pressable>
         );
       })}

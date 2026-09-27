@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tr } from '../i18n/t';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -85,8 +86,8 @@ export function TabHeader({ title }: Props) {
       {notifOpen ? (
         <View style={[styles.panel, { backgroundColor: themeColors.bgCard, borderColor: themeColors.borderStrong }]}>
           <View style={[styles.panelHeader, { borderBottomColor: themeColors.border }]}>
-            <Text style={[styles.panelTitle, { color: themeColors.ink }]}>Notifications</Text>
-            <Pressable onPress={() => setNotifOpen(false)} hitSlop={10} accessibilityLabel="Close notifications">
+            <Text style={[styles.panelTitle, { color: themeColors.ink }]}>{tr("Notifications")}</Text>
+            <Pressable onPress={() => setNotifOpen(false)} hitSlop={10} accessibilityLabel={tr("Close notifications")}>
               <Text style={{ fontSize: 16, color: themeColors.muted }}>✕</Text>
             </Pressable>
           </View>
@@ -103,7 +104,7 @@ export function TabHeader({ title }: Props) {
               ))}
             </ScrollView>
           ) : (
-            <Text style={[styles.empty, { color: themeColors.muted }]}>No notifications yet.</Text>
+            <Text style={[styles.empty, { color: themeColors.muted }]}>{tr("No notifications yet.")}</Text>
           )}
         </View>
       ) : null}

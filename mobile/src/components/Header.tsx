@@ -1,4 +1,5 @@
 import React from 'react';
+import { tr } from '../i18n/t';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, themedStyles } from '../theme/tokens';
 import { BackChevronIcon } from '../icons';
@@ -32,7 +33,7 @@ export function Header({ title, onBack, right }: Props) {
         <BackChevronIcon />
       </Pressable>
       <Text style={[styles.title, { color: themeColors.ink }]} numberOfLines={1}>
-        {title}
+        {tr(title)}
       </Text>
       {right ? <View style={styles.right}>{right}</View> : null}
     </View>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tr } from '../i18n/t';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, themedStyles } from '../theme/tokens';
 
@@ -15,7 +16,7 @@ export function SelectField({ value, options, onChange, placeholder = 'Select...
     <>
       <Pressable style={styles.field} onPress={() => setOpen(true)}>
         <Text style={[styles.fieldText, !value && styles.placeholder]} numberOfLines={1}>
-          {value || placeholder}
+          {value || tr(placeholder)}
         </Text>
         <Text style={styles.chevron}>▾</Text>
       </Pressable>

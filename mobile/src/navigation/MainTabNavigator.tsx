@@ -1,4 +1,5 @@
 import React from 'react';
+import { tr } from '../i18n/t';
 import {
   View, Text, Pressable, useWindowDimensions, StyleSheet, Platform,
 } from 'react-native';
@@ -14,6 +15,8 @@ import { DiscoverScreen } from '../screens/DiscoverScreen';
 import { MatchesScreen } from '../screens/MatchesScreen';
 import { ChatListScreen } from '../screens/ChatListScreen';
 import { AccountScreen } from '../screens/AccountScreen';
+import { Badge } from '../components/Badge';
+import { useBadgeCounts } from '../hooks/useBadgeCounts';
 
 export type MainTabParamList = {
   Discover: undefined;
@@ -37,6 +40,7 @@ const ICONS: Record<keyof MainTabParamList, React.ComponentType<{ size?: number;
 // ─── Desktop Sidebar ───────────────────────────────────────────────────────
 function DesktopSidebar({ state, navigation }: BottomTabBarProps) {
   const { colors, mode, toggle } = useTheme();
+  const badges = useBadgeCounts();
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
   const T = tabStrings(lang);
   const labels: Record<keyof MainTabParamList, string> = {
@@ -53,8 +57,8 @@ function DesktopSidebar({ state, navigation }: BottomTabBarProps) {
     }]}>
       {/* Logo */}
       <View style={[sidebarStyles.logoArea, { borderBottomColor: colors.borderHairline }]}>
-        <Text style={[sidebarStyles.logoText, { color: colors.primary }]}>☪ Kifaah</Text>
-        <Text style={[sidebarStyles.logoSub, { color: colors.muted }]}>Shariah-guided matrimony</Text>
+        <Text style={[sidebarStyles.logoText, { color: colors.primary }]}>{tr("☪ Kifaah")}</Text>
+        <Text style={[sidebarStyles.logoSub, { color: colors.muted }]}>{tr("Shariah-guided matrimony")}</Text>
       </View>
 
       {/* Nav items */}
@@ -70,8 +74,8 @@ function DesktopSidebar({ state, navigation }: BottomTabBarProps) {
                 const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
                 if (!focused && !event.defaultPrevented) navigation.navigate(route.name as any);
               }}
-              style={({ pressed }) => [sidebarStyles.navItem, {
-                backgroundColor: focused ? colors.greenBg : pressed ? colors.borderHairline : 'transparent',
+              style={({ pressed, hovered }: any) => [sidebarStyles.navItem, {
+                backgroundColor: focused ? colors.greenBg : pressed || hovered ? colors.borderHairline : 'transparent',
                 borderLeftColor: focused ? colors.primary : 'transparent',
               }]}
             >
@@ -79,7 +83,9 @@ function DesktopSidebar({ state, navigation }: BottomTabBarProps) {
               <Text style={[sidebarStyles.navLabel, {
                 color: focused ? colors.primary : colors.muted,
                 fontWeight: focused ? '700' : '400',
+                flex: 1,
               }]}>{label}</Text>
+              <Badge count={badges[route.name] ?? 0} />
             </Pressable>
           );
         })}
@@ -91,10 +97,10 @@ function DesktopSidebar({ state, navigation }: BottomTabBarProps) {
           onPress={() => navigation.getParent()?.navigate('Support' as never)}
           style={({ pressed }) => [sidebarStyles.supportLink, { backgroundColor: pressed ? colors.borderHairline : 'transparent' }]}
         >
-          <Text style={{ fontSize: 14, color: colors.muted }}>❓  Help & Support</Text>
+          <Text style={{ fontSize: 14, color: colors.muted }}>{tr("❓ Help & Support")}</Text>
         </Pressable>
         <Pressable onPress={toggle} style={[sidebarStyles.themeToggle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={{ fontSize: 14, color: colors.ink }}>{mode === 'dark' ? '☀ Light mode' : '🌙 Dark mode'}</Text>
+          <Text style={{ fontSize: 14, color: colors.ink }}>{mode === 'dark' ? '☀ ' + tr('Light mode') : '🌙 ' + tr('Dark mode')}</Text>
         </Pressable>
       </View>
     </View>
@@ -104,6 +110,7 @@ function DesktopSidebar({ state, navigation }: BottomTabBarProps) {
 // ─── Mobile Bottom Bar ─────────────────────────────────────────────────────
 function MobileTabBar({ state, navigation }: BottomTabBarProps) {
   const { colors } = useTheme();
+  const badges = useBadgeCounts();
   const insets = useSafeAreaInsets();
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
   const T = tabStrings(lang);
@@ -133,7 +140,10 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
             }}
             style={mobileBarStyles.tabBtn}
           >
-            <Icon size={18} color={color} />
+            <View>
+              <Icon size={18} color={color} />
+              <Badge count={badges[route.name] ?? 0} style={mobileBarStyles.badge} />
+            </View>
             <Text style={[mobileBarStyles.label, { color }]}>{labels[route.name as keyof MainTabParamList]}</Text>
           </Pressable>
         );
@@ -250,5 +260,10 @@ const mobileBarStyles = StyleSheet.create({
   label: {
     fontSize: 10,
     fontWeight: '700',
+  },
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: -14,
   },
 });

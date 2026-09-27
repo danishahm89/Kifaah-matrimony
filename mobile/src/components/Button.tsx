@@ -1,4 +1,5 @@
 import React from 'react';
+import { tr } from '../i18n/t';
 import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -75,7 +76,7 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
         {loading ? (
           <ActivityIndicator color={variantStyle.text.color as string} size="small" />
         ) : (
-          <Text style={[styles.text, variantStyle.text]}>{title}</Text>
+          <Text style={[styles.text, variantStyle.text]}>{tr(title)}</Text>
         )}
       </Pressable>
     </Animated.View>

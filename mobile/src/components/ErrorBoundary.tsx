@@ -1,4 +1,5 @@
 import React from 'react';
+import { tr } from '../i18n/t';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, fonts, themedStyles } from '../theme/tokens';
 import { logger } from '../utils/logger';
@@ -24,10 +25,10 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
     return (
       <View style={styles.container}>
         <Text style={styles.emoji}>⚠️</Text>
-        <Text style={styles.title}>Something went wrong</Text>
+        <Text style={styles.title}>{tr("Something went wrong")}</Text>
         <Text style={styles.message}>{this.state.message}</Text>
         <TouchableOpacity style={styles.btn} onPress={this.handleReset}>
-          <Text style={styles.btnText}>Try again</Text>
+          <Text style={styles.btnText}>{tr("Try again")}</Text>
         </TouchableOpacity>
       </View>
     );

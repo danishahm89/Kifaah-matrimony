@@ -1,4 +1,5 @@
 import React from 'react';
+import { tr } from '../i18n/t';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,8 +15,8 @@ function Row({ icon, title, text, onPress }: { icon: string; title: string; text
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
       <Text style={styles.icon}>{icon}</Text>
       <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowText}>{text}</Text>
+        <Text style={styles.rowTitle}>{tr(title)}</Text>
+        <Text style={styles.rowText}>{tr(text)}</Text>
       </View>
       <Text style={styles.chevron}>›</Text>
     </Pressable>
@@ -39,21 +40,20 @@ export function SupportScreen() {
 
   return (
     <Screen>
-      <Header title="Help & Support" onBack={() => navigation.goBack()} />
+      <Header title={tr("Help & Support")} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.lead}>We are here to help. Pick how you want to reach us.</Text>
+        <Text style={styles.lead}>{tr("We are here to help. Pick how you want to reach us.")}</Text>
 
-        <Row icon="📖" title="FAQs" text="Quick answers to common questions" onPress={() => navigation.navigate('FAQ')} />
+        <Row icon="📖" title={tr("FAQs")} text={tr("Quick answers to common questions")} onPress={() => navigation.navigate('FAQ')} />
         {SUPPORT_WHATSAPP ? (
-          <Row icon="💬" title="Chat on WhatsApp" text="Fastest reply, usually within a few hours" onPress={openWhatsApp} />
+          <Row icon="💬" title={tr("Chat on WhatsApp")} text={tr("Fastest reply, usually within a few hours")} onPress={openWhatsApp} />
         ) : null}
-        {SUPPORT_EMAIL ? <Row icon="✉️" title="Email us" text={SUPPORT_EMAIL} onPress={openEmail} /> : null}
+        {SUPPORT_EMAIL ? <Row icon="✉️" title={tr("Email us")} text={SUPPORT_EMAIL} onPress={openEmail} /> : null}
 
         <View style={styles.note}>
-          <Text style={styles.noteTitle}>Safety concern?</Text>
+          <Text style={styles.noteTitle}>{tr("Safety concern?")}</Text>
           <Text style={styles.noteText}>
-            If someone is behaving badly, block them from their profile or chat, then tell us. We review every
-            report.
+            {tr("If someone is behaving badly, block them from their profile or chat, then tell us. We review every report.")}
           </Text>
         </View>
       </ScrollView>

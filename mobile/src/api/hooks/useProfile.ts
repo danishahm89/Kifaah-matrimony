@@ -13,7 +13,13 @@ export function useProfileMe(enabled = true) {
 
 export function useUpdateProfile() {
   return useMutation({
-    mutationFn: (patch: Partial<Profile>) => profileApi.update(patch),
+    mutationFn: (patch: Partial<Profile>) => {
+      // Wali is optional for brothers. Never send a blank one — older backends reject it with
+      // "invalid_input", which showed brothers a "please add your wali" error.
+      const clean = { ...patch };
+      if (typeof clean.wali === 'string' && clean.wali.trim() === '') delete clean.wali;
+      return profileApi.update(clean);
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.profileMe, data);
       queryClient.invalidateQueries({ queryKey: queryKeys.me });

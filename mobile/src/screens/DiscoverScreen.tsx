@@ -1,4 +1,6 @@
 import React from 'react';
+import { GenderAvatar } from '../components/GenderAvatar';
+import { tr } from '../i18n/t';
 import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,33 +30,28 @@ function initials(name: string) {
     .join('');
 }
 
-function ProfileCard({ item, onOpen }: { item: DiscoverCandidate; onOpen: () => void }) {
+function ProfileCard({ item, onOpen, theirGender }: { item: DiscoverCandidate; onOpen: () => void; theirGender: 'bride' | 'groom' }) {
   const good = item.score >= 65;
   return (
     <Pressable
       onPress={onOpen}
       style={({ pressed, hovered }: any) => [styles.card, (pressed || hovered) && styles.cardActive]}
       accessibilityRole="button"
-      accessibilityLabel={`View profile of ${item.name}`}
+      accessibilityLabel={tr('View profile of {name}', { name: item.name })}
     >
       <View style={styles.cardTop}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials(item.name)}</Text>
-          <View style={styles.lockBadge}>
-            <Text style={styles.lockBadgeText}>🔒</Text>
-          </View>
-        </View>
+        <GenderAvatar gender={theirGender} size={64} photoUrl={item.photoUrl} locked={!item.photoUrl} />
         <View style={styles.cardInfo}>
           <Text style={styles.name} numberOfLines={1}>
             {item.name}
           </Text>
           <Text style={styles.ageLine}>
-            {item.age} yrs{item.city ? ` · ${item.city}` : ''}
+            {item.age}{" "}{tr("yrs")}{item.city ? ` · ${item.city}` : ''}
           </Text>
         </View>
         <View style={[styles.scorePill, { backgroundColor: good ? colors.greenBg : colors.lowBg }]}>
           <Text style={[styles.scoreNum, { color: good ? colors.greenText : colors.lowText }]}>{item.score}%</Text>
-          <Text style={[styles.scoreLabel, { color: good ? colors.greenText : colors.lowText }]}>match</Text>
+          <Text style={[styles.scoreLabel, { color: good ? colors.greenText : colors.lowText }]}>{tr("match")}</Text>
         </View>
       </View>
 
@@ -74,8 +71,8 @@ function ProfileCard({ item, onOpen }: { item: DiscoverCandidate; onOpen: () => 
       </View>
 
       <View style={styles.cardFooter}>
-        <Text style={styles.privacyNote}>Photo private until approved</Text>
-        <Text style={styles.viewLink}>View profile ›</Text>
+        <Text style={styles.privacyNote}>{tr("Photo private until approved")}</Text>
+        <Text style={styles.viewLink}>{tr("View profile ›")}</Text>
       </View>
     </Pressable>
   );
@@ -106,16 +103,18 @@ export function DiscoverScreen() {
         ListHeaderComponent={
           <View style={styles.intro}>
             <Text style={styles.introTitle}>
-              {candidates.length > 0 ? `${candidates.length} suggested ${feedGenderLabel}` : `Suggested ${feedGenderLabel}`}
+              {candidates.length > 0
+                ? tr(`{n} suggested ${feedGenderLabel}`, { n: candidates.length })
+                : tr(`Suggested ${feedGenderLabel}`)}
             </Text>
             <Text style={styles.introText}>
-              Ranked by compatibility. Photos and contact details stay private until you both agree.
+              {tr("Ranked by compatibility. Photos and contact details stay private until you both agree.")}
             </Text>
           </View>
         }
         renderItem={({ item }) => (
           <View style={columns > 1 ? styles.half : undefined}>
-            <ProfileCard item={item} onOpen={() => openDetail(item.id)} />
+            <ProfileCard item={item} theirGender={gender === 'groom' ? 'bride' : 'groom'} onOpen={() => openDetail(item.id)} />
           </View>
         )}
         refreshing={isRefetching && !isLoading}
@@ -124,7 +123,7 @@ export function DiscoverScreen() {
           isLoading ? (
             <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
           ) : (
-            <EmptyState text="You've reviewed everyone matching your preferences right now. New recommendations arrive with the weekly match refresh." />
+            <EmptyState text={tr("You've reviewed everyone matching your preferences right now. New recommendations arrive with the weekly match refresh.")} />
           )
         }
       />

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { tr } from '../i18n/t';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { colors, fonts, themedStyles } from '../theme/tokens';
 import { logger } from '../utils/logger';
@@ -42,7 +43,7 @@ export function OfflineBanner() {
   if (!offline) return null;
   return (
     <View style={styles.banner}>
-      <Text style={styles.text}>⚠️  No internet connection</Text>
+      <Text style={styles.text}>{tr("⚠️ No internet connection")}</Text>
     </View>
   );
 }

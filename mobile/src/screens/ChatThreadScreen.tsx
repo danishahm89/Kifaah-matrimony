@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { tr } from '../i18n/t';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Alert } from '../utils/alert';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -23,6 +24,7 @@ import { useBlockUser } from '../api/hooks/useBlocks';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/uiStore';
 import { useScreenshotReporting } from '../hooks/useScreenshotReporting';
+import { useChatSeenStore } from '../store/chatSeenStore';
 import { deriveChatThreadState } from './chatThreadState';
 import type { RootStackParamList } from '../navigation/types';
 import type { ChatMessage } from '../types';
@@ -65,6 +67,12 @@ export function ChatThreadScreen() {
   useScreenshotReporting(conversation?.conversationId);
 
   const { data: messages = [] } = useMessages(userId);
+  const markSeen = useChatSeenStore((s) => s.markSeen);
+  // Anything shown while this chat is open counts as read (clears the Messages badge).
+  useEffect(() => {
+    markSeen(userId);
+    return () => markSeen(userId);
+  }, [userId, messages.length, markSeen]);
   const sendMessage = useSendMessage(userId);
   const [draft, setDraft] = useState('');
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
@@ -189,27 +197,27 @@ export function ChatThreadScreen() {
         <View style={styles.menuPanel}>
           {uiState.showClose ? (
             <Pressable style={styles.menuRow} onPress={onCloseConversation}>
-              <Text style={styles.menuRowText}>Close Conversation</Text>
+              <Text style={styles.menuRowText}>{tr("Close Conversation")}</Text>
             </Pressable>
           ) : null}
           {uiState.showRequestReopen ? (
             <Pressable style={styles.menuRow} onPress={onRequestReopen} disabled={requestReopen.isPending}>
-              <Text style={styles.menuRowText}>Request Reopen</Text>
+              <Text style={styles.menuRowText}>{tr("Request Reopen")}</Text>
             </Pressable>
           ) : null}
           {isBride ? (
             waliShareStatus.data?.status === 'active' ? (
               <Pressable style={styles.menuRow} onPress={onRevokeWaliShare}>
-                <Text style={styles.menuRowText}>Wali share: Active — Revoke</Text>
+                <Text style={styles.menuRowText}>{tr("Wali share: Active — Revoke")}</Text>
               </Pressable>
             ) : (
               <Pressable style={styles.menuRow} onPress={onShareWithWali} disabled={createWaliShare.isPending}>
-                <Text style={styles.menuRowText}>Share Conversation with Wali</Text>
+                <Text style={styles.menuRowText}>{tr("Share Conversation with Wali")}</Text>
               </Pressable>
             )
           ) : null}
           <Pressable style={styles.menuRow} onPress={onBlock}>
-            <Text style={[styles.menuRowText, { color: colors.redDark }]}>Block {name}</Text>
+            <Text style={[styles.menuRowText, { color: colors.redDark }]}>{tr("Block")}{" "}{name}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -217,22 +225,22 @@ export function ChatThreadScreen() {
       {chaperoneOn ? (
         <View style={styles.chaperoneBanner}>
           <ShieldIcon size={14} />
-          <Text style={styles.chaperoneText}>Visible to both families' guardians (wali), in line with Islamic etiquette.</Text>
+          <Text style={styles.chaperoneText}>{tr("Visible to both families' guardians (wali), in line with Islamic etiquette.")}</Text>
         </View>
       ) : null}
 
       {banner.kind !== 'none' ? (
         <View style={styles.lifecycleBanner}>
-          {banner.kind === 'closed' ? <Text style={styles.lifecycleText}>Conversation Closed</Text> : null}
-          {banner.kind === 'blocked' ? <Text style={styles.lifecycleText}>This conversation is blocked.</Text> : null}
+          {banner.kind === 'closed' ? <Text style={styles.lifecycleText}>{tr("Conversation Closed")}</Text> : null}
+          {banner.kind === 'blocked' ? <Text style={styles.lifecycleText}>{tr("This conversation is blocked.")}</Text> : null}
           {banner.kind === 'limited' ? (
             <Text style={styles.lifecycleText}>
-              You can see this connection, but messaging opens once both sides have an active subscription.
+              {tr("You can see this connection, but messaging opens once both sides have an active subscription.")}
             </Text>
           ) : null}
           {banner.kind === 'reopen_requested_by_me' ? (
             <>
-              <Text style={styles.lifecycleText}>Reopen request sent — waiting for {name} to respond.</Text>
+              <Text style={styles.lifecycleText}>{tr("Reopen request sent — waiting for")}{" "}{name}{" "}{tr("to respond.")}</Text>
               {/* The backend allows the requester to cancel their own pending reopen request (it's
                   the same POST .../reopen-request/reject route, just called by the requester
                   instead of the recipient) — surface that capability rather than only letting them wait. */}
@@ -245,13 +253,13 @@ export function ChatThreadScreen() {
                 }
                 disabled={rejectReopen.isPending}
               >
-                <Text style={styles.lifecycleBtnText}>Cancel Request</Text>
+                <Text style={styles.lifecycleBtnText}>{tr("Cancel Request")}</Text>
               </Pressable>
             </>
           ) : null}
           {banner.kind === 'reopen_requested_by_them' ? (
             <>
-              <Text style={styles.lifecycleText}>{name} wants to reopen this conversation.</Text>
+              <Text style={styles.lifecycleText}>{name}{" "}{tr("wants to reopen this conversation.")}</Text>
               <View style={styles.lifecycleActions}>
                 <Pressable
                   style={[styles.lifecycleBtn, styles.lifecycleBtnPrimary]}
@@ -261,7 +269,7 @@ export function ChatThreadScreen() {
                     })
                   }
                 >
-                  <Text style={styles.lifecycleBtnPrimaryText}>Accept</Text>
+                  <Text style={styles.lifecycleBtnPrimaryText}>{tr("Accept")}</Text>
                 </Pressable>
                 <Pressable
                   style={styles.lifecycleBtn}
@@ -271,7 +279,7 @@ export function ChatThreadScreen() {
                     })
                   }
                 >
-                  <Text style={styles.lifecycleBtnText}>Reject</Text>
+                  <Text style={styles.lifecycleBtnText}>{tr("Reject")}</Text>
                 </Pressable>
               </View>
             </>
@@ -282,7 +290,7 @@ export function ChatThreadScreen() {
               onPress={onRequestReopen}
               disabled={requestReopen.isPending}
             >
-              <Text style={styles.lifecycleBtnPrimaryText}>Request Reopen</Text>
+              <Text style={styles.lifecycleBtnPrimaryText}>{tr("Request Reopen")}</Text>
             </Pressable>
           ) : null}
         </View>
