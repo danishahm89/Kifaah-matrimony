@@ -49,6 +49,17 @@ export interface Profile {
   dislikesCustom?: string | null;
   phone?: string | null;
   contactEmail?: string | null;
+  // Added after the India audit.
+  state?: string | null;
+  motherTongue?: string | null;
+  education?: string | null;
+  profession?: string | null;
+  // Partner preferences; null/empty = any.
+  prefMinAge?: number | null;
+  prefMaxAge?: number | null;
+  prefState?: string | null;
+  prefSect?: string | null;
+  prefMarital?: string | null;
 }
 
 export interface Subscription {
@@ -77,6 +88,11 @@ export interface ReferenceData {
   hajjOptions: string[];
   polygamyOptions: { bride: string[]; groom: string[] };
   smokingOptions: string[];
+  // Newer backends only.
+  states?: string[];
+  motherTongues?: string[];
+  educationOptions?: string[];
+  professionOptions?: string[];
 }
 
 export interface DiscoverCandidate {
@@ -87,6 +103,9 @@ export interface DiscoverCandidate {
   sect: string;
   eduProf: string;
   score: number;
+  // Why this match: same_city | same_sect | same_prayer | similar_profession
+  reasons?: string[];
+  marital?: string | null;
   photoLocked: true;
   // Only sent once the member's photo request was approved.
   photoUrl?: string | null;
@@ -107,6 +126,10 @@ export interface ProfileDetail {
   family?: string | null;
   height?: string | null;
   marital?: string | null;
+  state?: string | null;
+  motherTongue?: string | null;
+  education?: string | null;
+  profession?: string | null;
   about?: string | null;
   fasting?: string | null;
   quran?: string | null;
@@ -120,6 +143,8 @@ export interface ProfileDetail {
   score: number;
   interestStatus: InterestStatus;
   wali: string;
+  // True when the member has a Wali on file; the name itself is only sent after a mutual accept.
+  hasWali?: boolean;
   contact: { phone: string; email: string } | null;
   locked?: boolean;
   lockMessage?: string;
@@ -139,7 +164,7 @@ export interface InterestRequest {
   id: string;
   fromUserId: string;
   toUserId: string;
-  status: 'pending' | 'accepted' | 'declined';
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
   createdAt: string;
   updatedAt: string;
   // Convenience fields the API is expected to join in for list views.
@@ -166,6 +191,8 @@ export interface ChatSummary {
   conversationStatus?: ConversationStatus;
   canMessage?: boolean;
   canMessageReason?: string | null;
+  // Free messages I can still send when neither of us has a plan (null = unlimited).
+  freeMessagesLeft?: number | null;
   // Only meaningful when conversationStatus === 'reopen_requested' — whose request it is, so the
   // UI can tell the requester ("reopen request sent") from the recipient ("accept/reject") apart.
   reopenRequestedByUserId?: string | null;
@@ -254,4 +281,20 @@ export interface FaqItem {
 export interface ApiErrorBody {
   error: string;
   message?: string;
+}
+
+export interface DiscoverFilters {
+  minAge?: number;
+  maxAge?: number;
+  city?: string;
+  state?: string;
+  sect?: string;
+  marital?: string;
+}
+
+export interface DiscoverPage {
+  items: DiscoverCandidate[];
+  page: number;
+  total: number;
+  hasMore: boolean;
 }

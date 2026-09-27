@@ -40,3 +40,9 @@ logging:
 
 otp:
   consoleProviderTtlMinutes: 10
+
+chat:
+  freeMessagesPerPerson: 5   # free messages each after a mutual accept, when neither has a plan
+
+interests:
+  expireAfterDays: 30        # unanswered interests expire after this

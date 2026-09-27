@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { GenderAvatar } from '../components/GenderAvatar';
 import { tr } from '../i18n/t';
 import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -10,11 +10,21 @@ import { Screen } from '../components/Screen';
 import { TabHeader } from '../components/TabHeader';
 import { EmptyState } from '../components/EmptyState';
 import { colors, fonts, themedStyles } from '../theme/tokens';
-import { useDiscover } from '../api/hooks/useDiscover';
+import { useDiscoverFeed } from '../api/hooks/useDiscover';
+import { useReference } from '../api/hooks/useReference';
+import { DiscoverFilterSheet, activeFilterCount } from '../components/DiscoverFilterSheet';
 import { useAuthStore } from '../store/authStore';
 import { tabStrings } from '../i18n/strings';
 import type { RootStackParamList, MainTabParamList } from '../navigation/types';
-import type { DiscoverCandidate } from '../types';
+import type { DiscoverCandidate, DiscoverFilters } from '../types';
+
+const REASON_LABELS: Record<string, string> = {
+  fits_preferences: 'Fits your preferences',
+  same_city: 'Same city',
+  same_sect: 'Same sect',
+  same_prayer: 'Same prayer habit',
+  similar_profession: 'Similar profession',
+};
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Discover'>,
@@ -70,6 +80,19 @@ function ProfileCard({ item, onOpen, theirGender }: { item: DiscoverCandidate; o
         ) : null}
       </View>
 
+      {item.reasons && item.reasons.length > 0 ? (
+        <View style={styles.reasons} accessibilityLabel={tr('Why this match')}>
+          <Text style={styles.reasonsLabel}>{tr('Why this match')}</Text>
+          <View style={styles.facts}>
+            {item.reasons.map((r) => (
+              <View key={r} style={styles.reasonChip}>
+                <Text style={styles.reasonText}>✓ {tr(REASON_LABELS[r] ?? r)}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.cardFooter}>
         <Text style={styles.privacyNote}>{tr("Photo private until approved")}</Text>
         <Text style={styles.viewLink}>{tr("View profile ›")}</Text>
@@ -83,7 +106,14 @@ export function DiscoverScreen() {
   const gender = useAuthStore((s) => s.user?.gender ?? 'bride');
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
   const { width } = useWindowDimensions();
-  const { data: candidates = [], isLoading, refetch, isRefetching } = useDiscover();
+  const [filters, setFilters] = useState<DiscoverFilters>({});
+  const [filterOpen, setFilterOpen] = useState(false);
+  const { data: ref } = useReference();
+  const feed = useDiscoverFeed(filters);
+  const { isLoading, refetch, isRefetching } = feed;
+  const candidates = useMemo(() => feed.data?.pages.flatMap((p) => p.items) ?? [], [feed.data]);
+  const total = feed.data?.pages[0]?.total ?? 0;
+  const filterCount = activeFilterCount(filters);
 
   const feedGenderLabel = gender === 'groom' ? 'sisters' : 'brothers';
   const columns = Platform.OS === 'web' && width >= 1100 ? 2 : 1;
@@ -103,10 +133,26 @@ export function DiscoverScreen() {
         ListHeaderComponent={
           <View style={styles.intro}>
             <Text style={styles.introTitle}>
-              {candidates.length > 0
-                ? tr(`{n} suggested ${feedGenderLabel}`, { n: candidates.length })
+              {total > 0
+                ? tr(`{n} suggested ${feedGenderLabel}`, { n: total })
                 : tr(`Suggested ${feedGenderLabel}`)}
             </Text>
+            <View style={styles.filterRow}>
+              <Pressable
+                onPress={() => setFilterOpen(true)}
+                style={({ hovered }: any) => [styles.filterBtn, filterCount > 0 && styles.filterBtnOn, hovered && styles.cardActive]}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.filterBtnText, filterCount > 0 && { color: colors.white }]}>
+                  ⚙︎ {tr('Filters')}{filterCount > 0 ? ` (${filterCount})` : ''}
+                </Text>
+              </Pressable>
+              {filterCount > 0 ? (
+                <Pressable onPress={() => setFilters({})} accessibilityRole="button">
+                  <Text style={styles.clearText}>{tr('Clear')}</Text>
+                </Pressable>
+              ) : null}
+            </View>
             <Text style={styles.introText}>
               {tr("Ranked by compatibility. Photos and contact details stay private until you both agree.")}
             </Text>
@@ -117,15 +163,49 @@ export function DiscoverScreen() {
             <ProfileCard item={item} theirGender={gender === 'groom' ? 'bride' : 'groom'} onOpen={() => openDetail(item.id)} />
           </View>
         )}
-        refreshing={isRefetching && !isLoading}
+        refreshing={isRefetching && !isLoading && !feed.isFetchingNextPage}
         onRefresh={refetch}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => {
+          if (feed.hasNextPage && !feed.isFetchingNextPage) feed.fetchNextPage();
+        }}
+        ListFooterComponent={
+          feed.hasNextPage ? (
+            <Pressable onPress={() => feed.fetchNextPage()} style={styles.moreBtn} accessibilityRole="button">
+              {feed.isFetchingNextPage ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={styles.filterBtnText}>{tr('Show more')}</Text>
+              )}
+            </Pressable>
+          ) : null
+        }
         ListEmptyComponent={
           isLoading ? (
             <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
           ) : (
-            <EmptyState text={tr("You've reviewed everyone matching your preferences right now. New recommendations arrive with the weekly match refresh.")} />
+            <EmptyState
+              text={tr(
+                filterCount > 0
+                  ? 'No one matches these filters yet. Try removing a filter.'
+                  : "You've reviewed everyone matching your preferences right now. New recommendations arrive with the weekly match refresh."
+              )}
+            />
           )
         }
+      />
+      <DiscoverFilterSheet
+        visible={filterOpen}
+        value={filters}
+        cities={ref?.cities ?? []}
+        states={ref?.states}
+        sects={ref?.sects ?? []}
+        maritalOptions={ref?.maritalOptions ?? []}
+        onClose={() => setFilterOpen(false)}
+        onApply={(f) => {
+          setFilters(f);
+          setFilterOpen(false);
+        }}
       />
     </Screen>
   );
@@ -190,6 +270,23 @@ const styles = themedStyles(() =>
       borderColor: colors.borderHairline,
       maxWidth: '100%',
     },
+    reasons: { gap: 6 },
+    reasonsLabel: { fontFamily: fonts.semiBold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.4 },
+    reasonChip: { backgroundColor: colors.greenBg, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 10 },
+    reasonText: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.greenText },
+    filterRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 10 },
+    filterBtn: {
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+    },
+    filterBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+    filterBtnText: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.ink },
+    clearText: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.primary, textDecorationLine: 'underline' },
+    moreBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
     factText: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.ink },
     cardFooter: {
       flexDirection: 'row',

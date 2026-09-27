@@ -54,8 +54,9 @@ const linking: LinkingOptions<RootStackParamList> = {
       Payment: 'payment',
       FAQ: 'faq',
       Support: 'support',
-      Health: 'health',
+      Legal: 'policies/:doc?',
       Admin: 'admin',
+      ...(__DEV__ ? { Health: 'health' } : {}),
     },
   },
 };

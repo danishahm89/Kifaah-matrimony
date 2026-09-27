@@ -48,7 +48,12 @@ describe("Photo consent flow (CONTRACT §8.4)", () => {
       .set("Authorization", `Bearer ${from.token}`)
       .expect(200);
     expect(after.body.photoAccessStatus).toBe("accepted");
-    expect(after.body.photoUrl).toBe("/uploads/fake.jpg");
+    // Never the raw storage path — a signed, expiring link that the photo route accepts.
+    expect(after.body.photoUrl).toMatch(/^\/api\/photos\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    expect(after.body.photoUrl).not.toContain("fake.jpg");
+    // The old public folder is gone, and a tampered link is refused.
+    await request(app).get("/uploads/fake.jpg").expect(404);
+    await request(app).get(`${after.body.photoUrl}x`).expect(404);
   });
 
   it("request -> reject leaves the photo hidden, and a re-request after reject is rejected as already_exists (front-end shows current status)", async () => {
@@ -90,7 +95,7 @@ describe("Photo consent flow (CONTRACT §8.4)", () => {
       .set("Authorization", `Bearer ${from.token}`)
       .send({})
       .expect(201);
-    let owned = await prisma.photoAccessRequest.findFirst({ where: { ownerId: to.user.id } });
+    const owned = await prisma.photoAccessRequest.findFirst({ where: { ownerId: to.user.id } });
     await request(app).post(`/api/photo-requests/${owned!.id}/accept`).set("Authorization", `Bearer ${to.token}`).expect(200);
 
     // Close then reopen the conversation.

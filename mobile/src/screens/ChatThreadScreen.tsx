@@ -28,6 +28,8 @@ import { useChatSeenStore } from '../store/chatSeenStore';
 import { deriveChatThreadState } from './chatThreadState';
 import type { RootStackParamList } from '../navigation/types';
 import type { ChatMessage } from '../types';
+import { findContactDetails, CONTACT_BLOCKED_MESSAGE } from '../utils/contactGuard';
+import { ApiError } from '../api/client';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatThread'>;
 
@@ -91,10 +93,26 @@ export function ChatThreadScreen() {
   const onSend = () => {
     const text = draft.trim();
     if (!text || !uiState.composerEnabled) return;
+    // Quick check here so the person sees why at once; the server checks again.
+    if (findContactDetails(text).blocked) {
+      showToast(CONTACT_BLOCKED_MESSAGE, 'error');
+      return;
+    }
     setDraft('');
     setInputHeight(MIN_INPUT_HEIGHT);
     sendMessage.mutate(text, {
-      onError: () => showToast('Could not send that message. Please try again.'),
+      onError: (e) => {
+        const code = e instanceof ApiError ? e.body?.error : null;
+        if (code === 'contact_details_not_allowed') {
+          setDraft(text);
+          showToast(CONTACT_BLOCKED_MESSAGE, 'error');
+        } else if (code === 'free_limit_reached') {
+          setDraft(text);
+          showToast('You have used your free messages. When either of you has a plan, you can keep chatting.', 'info');
+        } else {
+          showToast('Could not send that message. Please try again.');
+        }
+      },
     });
   };
 
@@ -234,9 +252,20 @@ export function ChatThreadScreen() {
           {banner.kind === 'closed' ? <Text style={styles.lifecycleText}>{tr("Conversation Closed")}</Text> : null}
           {banner.kind === 'blocked' ? <Text style={styles.lifecycleText}>{tr("This conversation is blocked.")}</Text> : null}
           {banner.kind === 'limited' ? (
-            <Text style={styles.lifecycleText}>
-              {tr("You can see this connection, but messaging opens once both sides have an active subscription.")}
-            </Text>
+            <>
+              <Text style={styles.lifecycleText}>
+                {tr(
+                  banner.reason === 'free_limit_reached'
+                    ? 'You have used your free messages. When either of you has a plan, you can keep chatting.'
+                    : 'You can see this connection, but messaging is not open yet.'
+                )}
+              </Text>
+              {banner.reason === 'free_limit_reached' ? (
+                <Pressable style={[styles.lifecycleBtn, { marginTop: 8 }]} onPress={() => navigation.navigate('Pricing', { returnTo: 'account' })}>
+                  <Text style={styles.lifecycleBtnText}>{tr('See plans')}</Text>
+                </Pressable>
+              ) : null}
+            </>
           ) : null}
           {banner.kind === 'reopen_requested_by_me' ? (
             <>
@@ -305,6 +334,12 @@ export function ChatThreadScreen() {
           contentContainerStyle={styles.messagesList}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         />
+        {uiState.composerEnabled && conversation?.freeMessagesLeft != null ? (
+          <Text style={styles.freeNote}>
+            {tr('{n} free messages left. When either of you has a plan, chat is unlimited.', { n: conversation.freeMessagesLeft })}
+          </Text>
+        ) : null}
+        <Text style={styles.safetyNote}>{tr('For your safety, phone numbers, emails and social media IDs are blocked in chat.')}</Text>
         <View style={styles.inputRow}>
           <View style={[styles.inputBorder, { height: Math.max(MIN_INPUT_HEIGHT, inputHeight) }]}>
             <TextInput
@@ -335,6 +370,8 @@ export function ChatThreadScreen() {
 }
 
 const styles = themedStyles(() => StyleSheet.create({
+  freeNote: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.lowText, backgroundColor: colors.lowBg, paddingVertical: 6, paddingHorizontal: 16 },
+  safetyNote: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, paddingHorizontal: 16, paddingTop: 4 },
   menuBtn: {
     width: 32,
     height: 32,

@@ -8,7 +8,9 @@ export type AuditEvent =
   | "logout_all"
   | "subscription_activated"
   | "contact_unlocked"
-  | "refresh_token_reused_detected";
+  | "refresh_token_reused_detected"
+  | "profile_reported"
+  | "account_deleted";
 
 interface WriteAuditLogInput {
   userId?: string | null;

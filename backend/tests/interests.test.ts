@@ -2,7 +2,8 @@ import { describe, it, expect, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../src/app";
 import { prisma } from "../src/lib/prisma";
-import { signUpUser, resetDb } from "./helpers";
+import { signUpUser, resetDb, createTestUser } from "./helpers";
+import { expireOldInterests } from "../src/services/interestExpiry";
 
 describe("interest accept/decline authorization", () => {
   afterAll(async () => {
@@ -76,5 +77,22 @@ describe("interest accept/decline authorization", () => {
       .set("Authorization", `Bearer ${from.token}`)
       .send({});
     expect(res.status).toBe(402);
+  });
+});
+
+describe("interest expiry", () => {
+  it("expires old pending interests and lets them be sent again", async () => {
+    const a = await createTestUser("bride", { subscribed: true });
+    const b = await createTestUser("groom", { subscribed: true });
+    const old = await prisma.interestRequest.create({
+      data: { fromUserId: a.user.id, toUserId: b.user.id, createdAt: new Date(Date.now() - 40 * 24 * 3600 * 1000) },
+    });
+    expect(await expireOldInterests()).toBeGreaterThanOrEqual(1);
+    expect((await prisma.interestRequest.findUnique({ where: { id: old.id } }))?.status).toBe("expired");
+
+    const again = await request(app).post(`/api/interests/${a.user.id}`).set("Authorization", `Bearer ${b.token}`).send({});
+    expect(again.status).toBe(201);
+    expect(again.body.status).toBe("pending");
+    expect(again.body.fromUserId).toBe(b.user.id);
   });
 });

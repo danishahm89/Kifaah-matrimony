@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { prisma } from "../src/lib/prisma";
-import { computeScore, runMatchEngineForUser } from "../src/services/matchEngine";
+import { computeScore, matchReasons as reasonsFor, preferenceFit as fitFor, runMatchEngineForUser } from "../src/services/matchEngine";
 import { resetDb, randomPhone } from "./helpers";
 
 describe("match engine scoring formula", () => {
@@ -89,5 +89,23 @@ describe("match engine run — exclusion / min-score / top-3", () => {
     const viewer = await makeUser("GROOM", { name: "Lonely", city: "Nowhereville", sect: "Unique", prayer: "Unique" });
     const created = await runMatchEngineForUser(viewer.id, "test run 2");
     expect(created).toEqual([]);
+  });
+});
+
+describe("matchReasons", () => {
+  it("lists the same checks computeScore uses", () => {
+    const a = { city: "Aligarh", sect: "Hanafi", prayer: "5 times", profField: "Engineer" };
+    const b = { city: "Aligarh", sect: "Hanafi", prayer: "Sometimes", profField: "Engineering" };
+    expect(reasonsFor(a, b)).toEqual(["same_city", "same_sect", "similar_profession"]);
+    expect(reasonsFor(null, b)).toEqual([]);
+  });
+});
+
+describe("preferenceFit", () => {
+  it("counts preferences set and missed", () => {
+    const viewer = { prefMinAge: 24, prefMaxAge: 30, prefState: "Kerala", prefSect: null, prefMarital: null };
+    expect(fitFor(viewer, { age: 27, state: "Kerala", sect: null, marital: null })).toEqual({ set: 3, missed: 0 });
+    expect(fitFor(viewer, { age: 35, state: null, sect: null, marital: null })).toEqual({ set: 3, missed: 2 });
+    expect(fitFor(null, { age: 35, state: null, sect: null, marital: null })).toEqual({ set: 0, missed: 0 });
   });
 });

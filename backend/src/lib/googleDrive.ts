@@ -9,6 +9,9 @@ const FOLDER_ID = env.GOOGLE_DRIVE_FOLDER_ID;
 /** True only when both env vars are set AND the key file actually exists on disk. */
 export const driveConfigured = !!(KEY_FILE && FOLDER_ID && fs.existsSync(KEY_FILE));
 
+/** New uploads go to Drive only when PHOTO_STORAGE=drive. Default is the server's own disk. */
+export const driveUploadEnabled = driveConfigured && env.PHOTO_STORAGE === "drive";
+
 let driveClient: ReturnType<typeof google.drive> | null = null;
 
 function getDrive() {
@@ -68,4 +71,9 @@ export async function streamPhoto(fileId: string): Promise<{ stream: NodeJS.Read
   const meta = await drive.files.get({ fileId, fields: "mimeType" });
   const res = await drive.files.get({ fileId, alt: "media" }, { responseType: "stream" });
   return { stream: res.data as unknown as NodeJS.ReadableStream, mimeType: meta.data.mimeType || "image/jpeg" };
+}
+
+/** Permanently removes a photo from Drive (used on re-upload and account deletion). */
+export async function deletePhoto(fileId: string): Promise<void> {
+  await getDrive().files.delete({ fileId });
 }

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { useAuthStore } from '../store/authStore';
 import { logger } from '../utils/logger';
 import type {
@@ -6,6 +7,8 @@ import type {
   ChatSummary,
   CreateOrderResponse,
   DiscoverCandidate,
+  DiscoverFilters,
+  DiscoverPage,
   FaqItem,
   Gender,
   InterestRequest,
@@ -161,7 +164,7 @@ export const authApi = {
   // RootNavigator's client-side fallback formula, against a backend snapshot that hasn't landed
   // the field yet — see the final report's "assumptions" section.
   me: () =>
-    get<{ user: User; profile: Profile | null; subscription: Subscription | null; profileComplete?: boolean }>(
+    get<{ user: User; profile: Profile | null; subscription: Subscription | null; profileComplete?: boolean; isAdmin?: boolean }>(
       '/api/auth/me'
     ),
 };
@@ -175,10 +178,17 @@ export const referenceApi = {
 export const profileApi = {
   me: () => get<Profile>('/api/profile/me'),
   update: (patch: Partial<Profile>) => put<Profile>('/api/profile/me', patch),
-  uploadPhoto: (fileUri: string, fileName: string, mimeType: string) => {
+  uploadPhoto: async (fileUri: string, fileName: string, mimeType: string) => {
     const form = new FormData();
-    // @ts-expect-error — RN's FormData file shape isn't in the DOM lib types.
-    form.append('file', { uri: fileUri, name: fileName, type: mimeType });
+    if (Platform.OS === 'web') {
+      // In the browser the picker gives a blob:/data: link. The {uri,name,type} object below only
+      // works on iOS/Android, so read the real file and send it as a Blob.
+      const blob = await (await fetch(fileUri)).blob();
+      form.append('file', blob, fileName || 'photo.jpg');
+    } else {
+      // @ts-expect-error — RN's FormData file shape isn't in the DOM lib types.
+      form.append('file', { uri: fileUri, name: fileName, type: mimeType });
+    }
     return request<{ photoUrl: string }>('/api/profile/photo', { method: 'POST', body: form });
   },
 };
@@ -188,11 +198,34 @@ export const accountApi = {
   setChaperone: (chaperoneChat: boolean) => put<{ ok: true }>('/api/account/chaperone', { chaperoneChat }),
   registerPushToken: (expoPushToken: string) => post<{ ok: true }>('/api/account/push-token', { expoPushToken }),
   deletePushToken: (expoPushToken: string) => del<{ ok: true }>('/api/account/push-token', { expoPushToken }),
+  // Permanently deletes the member's account and personal data.
+  deleteAccount: () => del<{ ok: true }>('/api/account', { confirm: 'DELETE' }),
+};
+
+// ---- Reports ----
+export type ReportReason =
+  | 'fake_profile'
+  | 'already_married'
+  | 'inappropriate_photo'
+  | 'harassment'
+  | 'asking_money'
+  | 'other';
+export const reportsApi = {
+  report: (userId: string, body: { reason: ReportReason; details?: string; block?: boolean }) =>
+    post<{ id: string; status: string; blocked: boolean }>(`/api/reports/${userId}`, body),
 };
 
 // ---- Discover / profiles ----
 export const discoverApi = {
   list: () => get<DiscoverCandidate[]>('/api/discover'),
+  // Filtered, paged feed (20 per page).
+  page: (filters: DiscoverFilters, page: number) => {
+    const qs = new URLSearchParams({ page: String(page), limit: '20' });
+    for (const [k, v] of Object.entries(filters)) {
+      if (v !== undefined && v !== null && v !== '') qs.set(k, String(v));
+    }
+    return get<DiscoverPage>(`/api/discover?${qs.toString()}`);
+  },
 };
 export const profilesApi = {
   detail: (id: string) => get<ProfileDetail>(`/api/profiles/${id}`),
@@ -317,4 +350,37 @@ export const paymentsApi = {
 // ---- FAQ ----
 export const faqApi = {
   list: () => get<FaqItem[]>('/api/faq'),
+};
+
+// ---- Admin (only works for phones in the server's ADMIN_PHONES) ----
+export interface AdminPerson {
+  id: string;
+  name: string;
+  city: string | null;
+  gender: string | null;
+  suspended: boolean;
+  deleted: boolean;
+}
+export interface AdminReport {
+  id: string;
+  reason: string;
+  details: string | null;
+  status: 'open' | 'reviewed' | 'actioned' | 'dismissed';
+  createdAt: string;
+  reporter: AdminPerson;
+  reported: AdminPerson & { totalReports: number };
+}
+export interface AdminContactAttempt {
+  userId: string;
+  name: string;
+  city: string | null;
+  suspended: boolean;
+  attempts: number;
+  lastAttemptAt: string;
+}
+export const adminApi = {
+  reports: (status: 'open' | 'all' = 'open') => get<AdminReport[]>(`/api/admin/reports?status=${status}`),
+  setReportStatus: (id: string, status: AdminReport['status']) => post<{ id: string; status: string }>(`/api/admin/reports/${id}`, { status }),
+  suspend: (userId: string, suspended: boolean) => post<{ id: string; suspended: boolean }>(`/api/admin/users/${userId}/suspend`, { suspended }),
+  contactAttempts: () => get<AdminContactAttempt[]>('/api/admin/contact-attempts'),
 };

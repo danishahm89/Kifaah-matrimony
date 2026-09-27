@@ -49,11 +49,12 @@ export function SupportScreen() {
           <Row icon="💬" title={tr("Chat on WhatsApp")} text={tr("Fastest reply, usually within a few hours")} onPress={openWhatsApp} />
         ) : null}
         {SUPPORT_EMAIL ? <Row icon="✉️" title={tr("Email us")} text={SUPPORT_EMAIL} onPress={openEmail} /> : null}
+        <Row icon="📜" title="Policies & Grievance" text="Terms, Privacy, Refunds and our Grievance Officer" onPress={() => navigation.navigate('Legal', { doc: 'grievance' })} />
 
         <View style={styles.note}>
           <Text style={styles.noteTitle}>{tr("Safety concern?")}</Text>
           <Text style={styles.noteText}>
-            {tr("If someone is behaving badly, block them from their profile or chat, then tell us. We review every report.")}
+            {tr("If someone is behaving badly, open their profile and tap Report this profile. We review every report.")}
           </Text>
         </View>
       </ScrollView>

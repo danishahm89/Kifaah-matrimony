@@ -68,6 +68,7 @@ export function MatchesScreen() {
   function statusChip(status: InterestRequest['status']) {
     if (status === 'accepted') return { label: 'Matched', bg: styles.chipMatched, color: colors.lowText };
     if (status === 'declined') return { label: 'Declined', bg: styles.chipAwaiting, color: colors.muted };
+    if (status === 'expired') return { label: 'Expired — you can send again', bg: styles.chipAwaiting, color: colors.muted };
     return { label: 'Awaiting', bg: styles.chipAwaiting, color: colors.muted };
   }
 
@@ -127,7 +128,7 @@ export function MatchesScreen() {
                       showToast(
                         subscribed
                           ? `It's a match! You can now message ${item.name}`
-                          : `Interest accepted — subscribe to unlock chat with ${item.name}`
+                          : `It's a match! You can send ${item.name} a few free messages now`
                       ),
                   }
                 )

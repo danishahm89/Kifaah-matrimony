@@ -2,7 +2,6 @@ import { NextFunction, Response, Router } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import crypto from "crypto";
 import sharp from "sharp";
 import { z } from "zod";
 import type { fileTypeFromBuffer as FileTypeFromBuffer } from "file-type";
@@ -11,7 +10,13 @@ import { requireAuth, AuthedRequest } from "../middleware/auth";
 import { logger } from "../lib/logger";
 import dynamicImport from "../lib/dynamicImport";
 import { appConfig } from "../lib/appConfig";
-import { driveConfigured, uploadPhoto, streamPhoto } from "../lib/googleDrive";
+import { driveConfigured, driveUploadEnabled, uploadPhoto, deletePhoto } from "../lib/googleDrive";
+import { signPhotoUrl, randomPhotoName } from "../lib/photoUrls";
+import { findContactDetails, CONTACT_BLOCKED_MESSAGE } from "../lib/contactGuard";
+import { recordContactAttempt } from "../lib/contactAttempts";
+
+// Free-text profile fields other members can read. None may carry contact details.
+const GUARDED_FIELDS = ["name", "about", "family", "wali", "city", "dietCustom", "habitsCustom", "likesCustom", "dislikesCustom"] as const;
 
 const router = Router();
 
@@ -47,7 +52,7 @@ function handleUploadErrors(err: unknown, _req: AuthedRequest, res: Response, ne
 
 router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
   const profile = await prisma.profile.findUnique({ where: { userId: req.userId! } });
-  res.json(profile);
+  res.json(profile ? { ...profile, photoUrl: signPhotoUrl(profile.photoUrl) } : profile);
 });
 
 // All Profile fields are optional/partial-updatable per CONTRACT §4 except
@@ -57,7 +62,8 @@ const profileUpdateSchema = z
   .object({
     name: z.string().min(1).optional(),
     age: z.number().int().min(18).max(99).optional(),
-    photoUrl: z.string().nullable().optional(),
+    // Only clearing is allowed here; a new photo must go through POST /photo.
+    photoUrl: z.null().optional(),
     sect: z.string().optional(),
     prayer: z.string().optional(),
     modesty: z.string().optional(),
@@ -84,6 +90,20 @@ const profileUpdateSchema = z
     dislikesCustom: z.string().optional(),
     phone: z.string().optional(),
     contactEmail: z.string().optional(),
+    state: z.string().max(80).nullable().optional(),
+    motherTongue: z.string().max(80).nullable().optional(),
+    education: z.string().max(80).nullable().optional(),
+    profession: z.string().max(80).nullable().optional(),
+    // Partner preferences; null = any.
+    prefMinAge: z.number().int().min(18).max(99).nullable().optional(),
+    prefMaxAge: z.number().int().min(18).max(99).nullable().optional(),
+    prefState: z.string().max(80).nullable().optional(),
+    prefSect: z.string().max(80).nullable().optional(),
+    prefMarital: z.string().max(80).nullable().optional(),
+  })
+  .refine((d) => d.prefMinAge == null || d.prefMaxAge == null || d.prefMinAge <= d.prefMaxAge, {
+    message: "prefMinAge must be <= prefMaxAge",
+    path: ["prefMaxAge"],
   })
   ;
 
@@ -103,13 +123,33 @@ router.put("/me", requireAuth, async (req: AuthedRequest, res) => {
     return res.status(400).json({ error: "wali_required" });
   }
 
+  // Keep the older combined fields filled so older app builds and the match
+  // score (which reads profField) keep working.
+  if (parsed.data.education || parsed.data.profession) {
+    const parts = [parsed.data.education, parsed.data.profession].filter(Boolean);
+    parsed.data.eduProf = parts.join(" · ");
+    if (parsed.data.profession) parsed.data.profField = parsed.data.profession;
+  }
+
+  for (const field of GUARDED_FIELDS) {
+    const value = parsed.data[field];
+    if (typeof value !== "string") continue;
+    const contact = findContactDetails(value);
+    if (contact.blocked) {
+      await recordContactAttempt(req.userId!, "profile", contact.kinds, { field });
+      return res
+        .status(422)
+        .json({ error: "contact_details_not_allowed", field, kinds: contact.kinds, message: CONTACT_BLOCKED_MESSAGE });
+    }
+  }
+
   const profile = await prisma.profile.upsert({
     where: { userId: req.userId! },
     update: parsed.data,
     create: { userId: req.userId!, wali: "", ...parsed.data },
   });
 
-  res.json(profile);
+  res.json({ ...profile, photoUrl: signPhotoUrl(profile.photoUrl) });
 });
 
 router.post("/photo", requireAuth, upload.single("file"), handleUploadErrors, async (req: AuthedRequest, res: Response) => {
@@ -149,13 +189,9 @@ router.post("/photo", requireAuth, upload.single("file"), handleUploadErrors, as
   }
 
   let photoUrl: string;
-  if (driveConfigured) {
-    // Filename convention requested: profile_name_profile_id (profile_id == userId,
-    // which is the Profile model's own @id). Sanitize the name for a safe filename.
-    const existing = await prisma.profile.findUnique({ where: { userId: req.userId! } });
-    const rawName = existing?.name?.trim() || "profile";
-    const safeName = rawName.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "profile";
-    const filename = `${safeName}_${req.userId}.jpg`;
+  if (driveUploadEnabled) {
+    // Random name: no member name or id in a file that sits in shared storage.
+    const filename = randomPhotoName();
 
     let fileId: string;
     try {
@@ -166,40 +202,35 @@ router.post("/photo", requireAuth, upload.single("file"), handleUploadErrors, as
     }
     photoUrl = `/api/profile/photos/drive/${fileId}`;
   } else {
-    const filename = `${req.userId}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.jpg`;
+    const filename = randomPhotoName();
     await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), outputBuffer);
     photoUrl = `/uploads/${filename}`;
   }
 
+  const previous = (await prisma.profile.findUnique({ where: { userId: req.userId! }, select: { photoUrl: true } }))
+    ?.photoUrl;
   await prisma.profile.upsert({
     where: { userId: req.userId! },
     update: { photoUrl },
     create: { userId: req.userId!, wali: "", photoUrl },
   });
-  res.json({ photoUrl });
+
+  // Files now have random names, so remove the old photo ourselves instead of
+  // relying on a same-name overwrite. Best effort only.
+  if (previous && previous !== photoUrl) {
+    try {
+      if (previous.startsWith("/uploads/")) {
+        await fs.promises.unlink(path.join(UPLOAD_DIR, path.basename(previous)));
+      } else {
+        const m = previous.match(/\/photos\/drive\/([A-Za-z0-9_-]+)$/);
+        if (m && driveConfigured) await deletePhoto(m[1]);
+      }
+    } catch (err) {
+      logger.warn({ err }, "could not remove previous photo");
+    }
+  }
+  res.json({ photoUrl: signPhotoUrl(photoUrl) });
 });
 
-/**
- * Streams a Drive-stored photo back to the client. Unauthenticated (mirrors the
- * existing /uploads static route's security model: obscurity via an unguessable
- * id, not an auth check) since profile detail screens need to load photos for
- * candidates the viewer hasn't matched with yet, same as local-disk photos.
- * The underlying Drive file is never shared publicly - only this server (via the
- * service account) can read it, so knowing the id alone doesn't work outside the app.
- */
-router.get("/photos/drive/:fileId", async (req, res) => {
-  if (!driveConfigured) {
-    return res.status(404).json({ error: "not_found" });
-  }
-  try {
-    const { stream, mimeType } = await streamPhoto(req.params.fileId);
-    res.setHeader("Content-Type", mimeType);
-    res.setHeader("Cache-Control", "private, max-age=3600");
-    stream.pipe(res);
-  } catch (err) {
-    logger.warn({ err, fileId: req.params.fileId }, "Failed to stream photo from Drive");
-    res.status(404).json({ error: "not_found" });
-  }
-});
 
 export default router;

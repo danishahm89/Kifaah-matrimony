@@ -9,7 +9,6 @@ initSentry();
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import path from "path";
 import pinoHttp from "pino-http";
 import { prisma } from "./lib/prisma";
 import { logger } from "./lib/logger";
@@ -31,6 +30,9 @@ import blocksRoutes from "./routes/blocks";
 import photoRequestsRoutes from "./routes/photoRequests";
 import waliRoutes from "./routes/wali";
 import securityRoutes from "./routes/security";
+import photosRoutes from "./routes/photos";
+import reportsRoutes from "./routes/reports";
+import adminRoutes from "./routes/admin";
 
 export const app = express();
 
@@ -75,8 +77,8 @@ app.use((req, res, next) => {
   return jsonBodyParser(req, res, next);
 });
 
-const UPLOAD_DIR = env.UPLOAD_DIR;
-app.use("/uploads", express.static(path.resolve(UPLOAD_DIR)));
+// Photos are no longer served from a public /uploads folder. They are only
+// reachable through short-lived signed links (routes/photos.ts).
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
@@ -108,6 +110,9 @@ app.use("/api/blocks", blocksRoutes);
 app.use("/api/photo-requests", photoRequestsRoutes);
 app.use("/api/wali", waliRoutes); // unauthenticated — CONTRACT §8.5
 app.use("/api/security", securityRoutes);
+app.use("/api/photos", photosRoutes);
+app.use("/api/reports", reportsRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Not-found + error handlers
 app.use((_req, res) => res.status(404).json({ error: "not_found" }));

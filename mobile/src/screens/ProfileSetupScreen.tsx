@@ -5,7 +5,7 @@ import { tr } from '../i18n/t';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
@@ -20,8 +20,15 @@ import { useReference } from '../api/hooks/useReference';
 import { useAuthStore } from '../store/authStore';
 import { useOnboardingStore } from '../store/onboardingStore';
 import { useUpdateProfile, useUploadPhoto } from '../api/hooks/useProfile';
-import { ApiError } from '../api/client';
+import { ApiError, authApi, resolvePhotoUrl } from '../api/client';
+import { queryClient, queryKeys } from '../api/queryClient';
+import { useProfileMe } from '../api/hooks/useProfile';
+import { useToastStore } from '../store/uiStore';
 import { friendlyProfileError } from '../utils/friendlyProfileError';
+import { AGE_RANGES } from '../components/DiscoverFilterSheet';
+import { findContactDetails } from '../utils/contactGuard';
+
+const ANY = 'Any';
 import type { RootStackParamList } from '../navigation/types';
 
 const OTHER_SPECIFY = 'Other (specify)';
@@ -71,7 +78,17 @@ export function ProfileSetupScreen() {
   const updateProfile = useUpdateProfile();
   const uploadPhoto = useUploadPhoto();
 
+  const route = useRoute<any>();
+  const editing = !!route.params?.edit;
+  const { data: savedProfile } = useProfileMe(true);
+  const showToast = useToastStore((st) => st.show);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  // In edit mode, start from the photo that is already saved.
+  // Show a photo that is already saved (edit mode, or after a page refresh during sign-up).
+  React.useEffect(() => {
+    if (savedProfile?.photoUrl && !photoUri) setPhotoUri(resolvePhotoUrl(savedProfile.photoUrl));
+  }, [savedProfile?.photoUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  const goBack = () => (editing ? navigation.goBack() : navigation.navigate('ShariahQA'));
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const pickPhoto = async () => {
@@ -138,9 +155,47 @@ export function ProfileSetupScreen() {
       setSubmitError('Please enter your name.');
       return;
     }
+    // Age is required to finish sign-up (the server treats a profile without it as incomplete).
+    if (draft.age == null || Number.isNaN(draft.age) || draft.age < 18 || draft.age > 99) {
+      setSubmitError('Please enter your age (18 or older).');
+      return;
+    }
+    if (gender === 'bride' && !(draft.wali ?? '').trim()) {
+      setSubmitError("Please go back one step and add your Wali's (guardian's) name.");
+      return;
+    }
+
+    // Same rule as the server: no contact details in any text other members read.
+    const texts: [string, string | null | undefined][] = [
+      ['your name', draft.name],
+      ['"About me"', draft.about],
+      ['"Family background"', draft.family],
+      ["your Wali's details", draft.wali],
+      ['your city', draft.city],
+      ['your notes', [draft.dietCustom, draft.habitsCustom, draft.likesCustom, draft.dislikesCustom].filter(Boolean).join(' ')],
+    ];
+    const hit = texts.find(([, v]) => findContactDetails(v).blocked);
+    if (hit) {
+      setSubmitError(`Please remove phone numbers, emails, links or social media IDs from ${hit[0]}. They can't be shared on Kifaah.`);
+      return;
+    }
 
     try {
       await updateProfile.mutateAsync(draft);
+      if (editing) {
+        reset();
+        showToast('Your profile has been saved.', 'success');
+        navigation.navigate('Main', { screen: 'Account' });
+        return;
+      }
+      // Sign-up: keep what was typed until the server confirms the profile is complete.
+      // (Before, the form was cleared first, so any missing field left people stuck on an
+      // empty form.) Once complete, RootNavigator switches to the app by itself.
+      const me = await queryClient.fetchQuery({ queryKey: queryKeys.me, queryFn: authApi.me, staleTime: 0 });
+      if (me?.profileComplete === false) {
+        setSubmitError('Your details were saved, but something required is still missing. Please check name, age and Wali.');
+        return;
+      }
       reset();
       // No explicit navigation call needed: RootNavigator swaps to the Main stack once
       // `wali` is present on the refetched profile (see useMe invalidation in useUpdateProfile).
@@ -152,7 +207,7 @@ export function ProfileSetupScreen() {
   if (isLoading || !ref) {
     return (
       <Screen>
-        <Header title={tr("Your profile")} onBack={() => navigation.navigate('ShariahQA')} />
+        <Header title={tr("Your profile")} onBack={goBack} />
         <View style={styles.loading}>
           <ActivityIndicator color={colors.red} />
         </View>
@@ -164,7 +219,7 @@ export function ProfileSetupScreen() {
 
   return (
     <Screen>
-      <Header title={tr("Your profile")} onBack={() => navigation.navigate('ShariahQA')} />
+      <Header title={tr("Your profile")} onBack={goBack} />
       <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -172,7 +227,7 @@ export function ProfileSetupScreen() {
         extraScrollHeight={24}
         keyboardOpeningTime={0}
       >
-        <StepProgress step={2} total={2} label="About you" />
+        <StepProgress step={2} total={2} label={editing ? 'Edit · About you' : 'About you'} />
 
         <FormCard icon="📷" title="Profile photo" hint="Optional, but it helps">
           <PhotoPicker
@@ -195,7 +250,7 @@ export function ProfileSetupScreen() {
               <TextField
                 value={draft.age != null ? String(draft.age) : ''}
                 onChangeText={(v) => setField('age', v.replace(/[^0-9]/g, '') ? Number(v.replace(/[^0-9]/g, '')) : undefined)}
-                placeholder="27"
+                placeholder={tr("e.g. 27")}
                 keyboardType="number-pad"
                 maxLength={2}
               />
@@ -219,6 +274,22 @@ export function ProfileSetupScreen() {
               ) : null}
             </View>
           </View>
+          {ref.states || ref.motherTongues ? (
+            <View style={styles.sideBySide}>
+              {ref.states ? (
+                <View style={styles.flex1}>
+                  <FieldLabel>{tr("State")}</FieldLabel>
+                  <SelectField title="State" searchable value={draft.state ?? ''} options={ref.states} onChange={(v) => setField('state', v)} />
+                </View>
+              ) : null}
+              {ref.motherTongues ? (
+                <View style={styles.flex1}>
+                  <FieldLabel>{tr("Mother tongue")}</FieldLabel>
+                  <SelectField title="Mother tongue" searchable value={draft.motherTongue ?? ''} options={ref.motherTongues} onChange={(v) => setField('motherTongue', v)} />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
           <View>
             <FieldLabel>{tr("Marital status")}</FieldLabel>
             <SegmentRow options={asOptions(ref.maritalOptions)} value={draft.marital ?? ''} onChange={(v) => setField('marital', v)} />
@@ -226,10 +297,23 @@ export function ProfileSetupScreen() {
         </FormCard>
 
         <FormCard icon="🎓" title="Education & family">
-          <View>
-            <FieldLabel>{tr("Education & profession")}</FieldLabel>
-            <SelectField title="Education & profession" value={draft.eduProf ?? ''} options={ref.eduProfOptions} onChange={onEduProfChange} />
-          </View>
+          {ref.educationOptions && ref.professionOptions ? (
+            <View style={styles.sideBySide}>
+              <View style={styles.flex1}>
+                <FieldLabel>{tr("Education")}</FieldLabel>
+                <SelectField title="Education" searchable value={draft.education ?? ''} options={ref.educationOptions} onChange={(v) => setField('education', v)} />
+              </View>
+              <View style={styles.flex1}>
+                <FieldLabel>{tr("Profession")}</FieldLabel>
+                <SelectField title="Profession" searchable value={draft.profession ?? ''} options={ref.professionOptions} onChange={(v) => setField('profession', v)} />
+              </View>
+            </View>
+          ) : (
+            <View>
+              <FieldLabel>{tr("Education & profession")}</FieldLabel>
+              <SelectField title="Education & profession" value={draft.eduProf ?? ''} options={ref.eduProfOptions} onChange={onEduProfChange} />
+            </View>
+          )}
           <View>
             <FieldLabel>{tr("Family background")}</FieldLabel>
             <TextField
@@ -297,6 +381,41 @@ export function ProfileSetupScreen() {
           </View>
         </FormCard>
 
+        <FormCard icon="💞" title="Partner preferences" hint="Optional. We show people who fit these first.">
+          <View>
+            <FieldLabel>{tr("Age")}</FieldLabel>
+            <SegmentRow
+              options={AGE_RANGES}
+              value={AGE_RANGES.find((r) => r.min === (draft.prefMinAge ?? undefined) && r.max === (draft.prefMaxAge ?? undefined))?.value ?? 'any'}
+              onChange={(v) => {
+                const r = AGE_RANGES.find((x) => x.value === v);
+                setField('prefMinAge', r?.min ?? null);
+                setField('prefMaxAge', r?.max ?? null);
+              }}
+            />
+          </View>
+          <View style={styles.sideBySide}>
+            {ref.states ? (
+              <View style={styles.flex1}>
+                <FieldLabel>{tr("State")}</FieldLabel>
+                <SelectField title="Preferred state" searchable value={draft.prefState || ANY} options={[ANY, ...ref.states]} onChange={(v) => setField('prefState', v === ANY ? '' : v)} />
+              </View>
+            ) : null}
+            <View style={styles.flex1}>
+              <FieldLabel>{tr("Sect / Madhab")}</FieldLabel>
+              <SelectField title="Preferred sect" value={draft.prefSect || ANY} options={[ANY, ...ref.sects]} onChange={(v) => setField('prefSect', v === ANY ? '' : v)} />
+            </View>
+          </View>
+          <View>
+            <FieldLabel>{tr("Marital status")}</FieldLabel>
+            <SegmentRow
+              options={asOptions([ANY, ...ref.maritalOptions])}
+              value={draft.prefMarital || ANY}
+              onChange={(v) => setField('prefMarital', v === ANY ? '' : v)}
+            />
+          </View>
+        </FormCard>
+
         <FormCard icon="✍️" title="About me / what I'm looking for" hint="Tap a suggestion to start, then make it yours">
           <View style={styles.suggestRow}>
             {SUGGESTIONS[gender].map((sug) => (
@@ -321,7 +440,7 @@ export function ProfileSetupScreen() {
         </FormCard>
 
         {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
-          <Button title={tr("Enter Kifaah")} onPress={finish} loading={updateProfile.isPending} style={styles.finishBtn} />
+          <Button title={tr(editing ? 'Save changes' : 'Enter Kifaah')} onPress={finish} loading={updateProfile.isPending} style={styles.finishBtn} />
       </KeyboardAwareScrollView>
     </Screen>
   );

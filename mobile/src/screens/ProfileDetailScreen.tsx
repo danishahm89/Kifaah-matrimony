@@ -13,6 +13,8 @@ import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useProfileDetail, useRequestPhoto, useAcceptPhotoRequest, useRejectPhotoRequest } from '../api/hooks/useDiscover';
 import { useSendInterest } from '../api/hooks/useInterests';
 import { useBlockUser } from '../api/hooks/useBlocks';
+import { useReportUser } from '../api/hooks/useReports';
+import { ReportSheet } from '../components/ReportSheet';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/uiStore';
 import { useScreenshotReporting } from '../hooks/useScreenshotReporting';
@@ -42,6 +44,8 @@ export function ProfileDetailScreen() {
   const acceptPhotoRequest = useAcceptPhotoRequest(profileId);
   const rejectPhotoRequest = useRejectPhotoRequest(profileId);
   const blockUser = useBlockUser();
+  const reportUser = useReportUser();
+  const [reportOpen, setReportOpen] = useState(false);
 
   // Short celebration card after an interest is sent.
   const [celebrate, setCelebrate] = useState(false);
@@ -107,7 +111,8 @@ export function ProfileDetailScreen() {
         { label: 'Family background', value: detail.family },
         { label: 'Height / appearance', value: detail.height },
         { label: 'Marital status', value: detail.marital },
-        { label: 'Location', value: detail.city },
+        { label: 'Location', value: [detail.city, detail.state].filter(Boolean).join(', ') || null },
+        { label: 'Mother tongue', value: detail.motherTongue },
       ],
     },
     {
@@ -321,13 +326,36 @@ export function ProfileDetailScreen() {
           <ShieldIcon color={colors.greenText} />
           <View style={{ flex: 1 }}>
             <Text style={styles.guardianText}>
-              {tr("Guardian (Wali):")}{" "}<Text style={{ fontFamily: fonts.extraBold }}>{detail.wali || '—'}</Text>
+              {tr("Guardian (Wali):")}{" "}<Text style={{ fontFamily: fonts.extraBold }}>
+                {detail.wali || (detail.hasWali ? tr('Shared after you both accept') : '—')}
+              </Text>
             </Text>
             <Text style={styles.cardText}>{guardianNoteText}</Text>
           </View>
         </View>
 
         <View style={styles.actionBottom}>{actionArea}</View>
+
+        <Button title="Report this profile" variant="text" onPress={() => setReportOpen(true)} />
+        <ReportSheet
+          visible={reportOpen}
+          name={detail.name}
+          loading={reportUser.isPending}
+          onClose={() => setReportOpen(false)}
+          onSubmit={(v) =>
+            reportUser.mutate(
+              { userId: profileId, ...v },
+              {
+                onSuccess: (res) => {
+                  setReportOpen(false);
+                  showToast('Thank you. Our team will review this report.', 'success');
+                  if (res.blocked) navigation.goBack();
+                },
+                onError: () => showToast('Could not send the report. Please try again.', 'error'),
+              }
+            )
+          }
+        />
       </ScrollView>
       {celebrate ? (
         <View style={styles.celebrateWrap} pointerEvents="none">

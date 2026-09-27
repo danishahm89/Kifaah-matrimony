@@ -16,6 +16,7 @@ import { PaymentScreen } from '../screens/PaymentScreen';
 import { ChatThreadScreen } from '../screens/ChatThreadScreen';
 import { FAQScreen } from '../screens/FAQScreen';
 import { SupportScreen } from '../screens/SupportScreen';
+import { LegalScreen } from '../screens/LegalScreen';
 import { HealthScreen } from '../screens/HealthScreen';
 import { AdminScreen } from '../screens/AdminScreen';
 
@@ -31,11 +32,12 @@ function AuthStack({ initialRoute }: { initialRoute: 'Welcome' | 'ShariahQA' | '
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="ShariahQA" component={ShariahQAScreen} />
       <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+      <Stack.Screen name="Legal" component={LegalScreen} />
     </Stack.Navigator>
   );
 }
 
-function MainStack() {
+function MainStack({ isAdmin }: { isAdmin: boolean }) {
   return (
     <Stack.Navigator initialRouteName="Main" screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Main" component={MainTabNavigator} />
@@ -45,8 +47,13 @@ function MainStack() {
       <Stack.Screen name="ChatThread" component={ChatThreadScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
       <Stack.Screen name="Support" component={SupportScreen} />
-      <Stack.Screen name="Health" component={HealthScreen} />
-      <Stack.Screen name="Admin" component={AdminScreen} />
+      <Stack.Screen name="Legal" component={LegalScreen} />
+      {/* Same two onboarding screens, opened in edit mode from the Profile tab. */}
+      <Stack.Screen name="ShariahQA" component={ShariahQAScreen} />
+      <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+      {/* Internal tools. The Admin panel still uses mock data, so neither ships to members. */}
+      {__DEV__ ? <Stack.Screen name="Health" component={HealthScreen} /> : null}
+      {__DEV__ || isAdmin ? <Stack.Screen name="Admin" component={AdminScreen} /> : null}
     </Stack.Navigator>
   );
 }
@@ -74,7 +81,7 @@ export function RootNavigator() {
     me?.profile?.age != null &&
     (me?.user?.gender !== 'bride' || !!me?.profile?.wali);
   const onboarded = !!token && (me?.profileComplete ?? fallbackComplete);
-  if (onboarded) return <MainStack />;
+  if (onboarded) return <MainStack isAdmin={!!me?.isAdmin} />;
 
   return <AuthStack initialRoute={token ? 'ShariahQA' : 'Welcome'} />;
 }

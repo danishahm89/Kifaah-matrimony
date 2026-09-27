@@ -9,8 +9,9 @@ export type MainTabParamList = {
 
 export type RootStackParamList = {
   Welcome: undefined;
-  ShariahQA: undefined;
-  ProfileSetup: undefined;
+  // `edit: true` = the member is changing an existing profile from the Profile tab.
+  ShariahQA: { edit?: boolean } | undefined;
+  ProfileSetup: { edit?: boolean } | undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
   ProfileDetail: { profileId: string; origin: 'discover' | 'matches' | 'notification' };
   Pricing: { returnTo: 'account' | 'detail'; pendingInterestProfileId?: string } | undefined;
@@ -26,6 +27,7 @@ export type RootStackParamList = {
   ChatThread: { userId: string; name?: string };
   FAQ: undefined;
   Support: undefined;
+  Legal: { doc?: 'terms' | 'privacy' | 'refund' | 'grievance' } | undefined;
   Health: undefined;
   Admin: undefined;
 };

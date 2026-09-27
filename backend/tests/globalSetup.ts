@@ -10,6 +10,7 @@ export default async function globalSetup() {
   const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
   try {
     await prisma.$transaction([
+      prisma.report.deleteMany(),
       prisma.securityEvent.deleteMany(),
       prisma.waliShare.deleteMany(),
       prisma.photoAccessRequest.deleteMany(),

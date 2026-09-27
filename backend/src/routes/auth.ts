@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { isAdminPhone } from "../lib/admin";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { signToken } from "../lib/jwt";
@@ -234,6 +235,7 @@ router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
     profile: user.profile,
     subscription: user.subscription,
     profileComplete: computeProfileComplete(user),
+    isAdmin: isAdminPhone(user.phone),
   });
 });
 

@@ -39,13 +39,19 @@ router.post("/:profileId", requireAuth, async (req: AuthedRequest, res) => {
       ],
     },
   });
-  if (existing) {
+  if (existing && existing.status !== "expired") {
     return res.status(409).json({ error: "already_exists" });
   }
 
-  const interest = await prisma.interestRequest.create({
-    data: { fromUserId, toUserId },
-  });
+  // An expired request can be sent again (by either person).
+  const interest = existing
+    ? await prisma.interestRequest.update({
+        where: { id: existing.id },
+        data: { fromUserId, toUserId, status: "pending", createdAt: new Date() },
+      })
+    : await prisma.interestRequest.create({
+        data: { fromUserId, toUserId },
+      });
 
   await createNotification({
     userId: toUserId,

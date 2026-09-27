@@ -27,15 +27,18 @@ describe("visibility rules", () => {
     expect(await canChat(a.user.id, b.user.id)).toBe(false);
   });
 
-  it("canChat requires BOTH sides subscribed, not just the accepting side", async () => {
+  it("canChat: one paid side is enough; with no plans, free messages still allow it", async () => {
     const a = await signUpUser("bride");
     const b = await signUpUser("groom");
     await prisma.interestRequest.create({ data: { fromUserId: a.user.id, toUserId: b.user.id, status: "accepted" } });
 
-    // Only `a` subscribed.
+    // Neither subscribed: free messages are still available.
+    expect(await canChat(a.user.id, b.user.id)).toBe(true);
+
+    // Only `a` subscribed: open for both.
     await prisma.subscription.update({ where: { userId: a.user.id }, data: { status: "active" } });
-    expect(await canChat(a.user.id, b.user.id)).toBe(false);
-    expect(await canChat(b.user.id, a.user.id)).toBe(false);
+    expect(await canChat(a.user.id, b.user.id)).toBe(true);
+    expect(await canChat(b.user.id, a.user.id)).toBe(true);
 
     // Now both subscribed.
     await prisma.subscription.update({ where: { userId: b.user.id }, data: { status: "active" } });

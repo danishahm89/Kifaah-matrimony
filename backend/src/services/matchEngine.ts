@@ -38,6 +38,56 @@ export function computeScore(
   return Math.min(score, 99);
 }
 
+/**
+ * Plain-language reasons behind the score, in the same order as the points
+ * above — shown as "Why this match" on Discover cards. Uses the exact same
+ * checks as computeScore so the two never disagree.
+ */
+export function matchReasons(
+  viewer: Pick<Profile, "city" | "sect" | "prayer" | "profField"> | null | undefined,
+  candidate: Pick<Profile, "city" | "sect" | "prayer" | "profField"> | null | undefined
+): string[] {
+  const reasons: string[] = [];
+  if (!viewer || !candidate) return reasons;
+  if (candidate.city && viewer.city && candidate.city === viewer.city) reasons.push("same_city");
+  if (candidate.sect && viewer.sect && candidate.sect === viewer.sect) reasons.push("same_sect");
+  if (candidate.prayer && viewer.prayer && candidate.prayer === viewer.prayer) reasons.push("same_prayer");
+  if (
+    viewer.profField &&
+    candidate.profField &&
+    viewer.profField.toLowerCase().includes(candidate.profField.toLowerCase().slice(0, 4))
+  ) {
+    reasons.push("similar_profession");
+  }
+  return reasons;
+}
+
+type PrefProfile = Pick<Profile, "prefMinAge" | "prefMaxAge" | "prefState" | "prefSect" | "prefMarital">;
+type FitProfile = Pick<Profile, "age" | "state" | "sect" | "marital">;
+
+/**
+ * How well a candidate fits the viewer's partner preferences.
+ * `set` = how many preferences the viewer has, `missed` = how many the
+ * candidate does not meet (an unknown value counts as missed).
+ */
+export function preferenceFit(viewer: PrefProfile | null | undefined, candidate: FitProfile | null | undefined) {
+  let set = 0;
+  let missed = 0;
+  if (!viewer) return { set, missed };
+  const check = (active: boolean, ok: boolean) => {
+    if (!active) return;
+    set += 1;
+    if (!ok) missed += 1;
+  };
+  const age = candidate?.age ?? null;
+  check(viewer.prefMinAge != null, age != null && age >= (viewer.prefMinAge as number));
+  check(viewer.prefMaxAge != null, age != null && age <= (viewer.prefMaxAge as number));
+  check(!!viewer.prefState, !!candidate?.state && candidate.state === viewer.prefState);
+  check(!!viewer.prefSect, !!candidate?.sect && candidate.sect === viewer.prefSect);
+  check(!!viewer.prefMarital, !!candidate?.marital && candidate.marital === viewer.prefMarital);
+  return { set, missed };
+}
+
 export function oppositeGender(gender: Gender): Gender {
   return gender === "BRIDE" ? "GROOM" : "BRIDE";
 }
@@ -79,6 +129,7 @@ export async function runMatchEngineForUser(userId: string, label: string) {
     where: {
       gender: oppositeGender(viewer.gender),
       id: { notIn: Array.from(excluded) },
+      suspended: false,
     },
     include: { profile: true },
   });

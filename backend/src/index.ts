@@ -3,6 +3,7 @@ import { appConfig } from "./lib/appConfig";
 import { sentryEnabled } from "./lib/sentry";
 import http from "http";
 import cron from "node-cron";
+import { expireOldInterests } from "./services/interestExpiry";
 import { app } from "./app";
 import { prisma } from "./lib/prisma";
 import { logger } from "./lib/logger";
@@ -49,6 +50,16 @@ cron.schedule("0 3 * * *", async () => {
     logger.info({ count }, "[conversation-archive] sweep complete");
   } catch (err) {
     logger.error({ err }, "[conversation-archive] sweep failed");
+  }
+});
+
+// Daily: expire interests nobody answered (config interests.expireAfterDays).
+cron.schedule("30 3 * * *", async () => {
+  try {
+    const count = await expireOldInterests();
+    logger.info({ count }, "[interest-expiry] sweep complete");
+  } catch (err) {
+    logger.error({ err }, "[interest-expiry] sweep failed");
   }
 });
 

@@ -35,6 +35,11 @@ model User {
   chaperoneChat Boolean  @default(true)
   createdAt     DateTime @default(now())
 
+  // Set by an admin after a report. A suspended member cannot use the app
+  // and is hidden from everyone else.
+  suspended   Boolean   @default(false)
+  suspendedAt DateTime?
+
   profile      Profile?
   subscription Subscription?
 
@@ -130,7 +135,24 @@ model Profile {
   name String @default("")
   age  Int?
 
+  // Added after the India audit: finer location/background fields. eduProf
+  // and profField stay filled (as "education · profession" and profession)
+  // so older app builds and the match score keep working.
+  state        String?
+  motherTongue String?
+  education    String?
+  profession   String?
+
+  // Partner preferences. Empty = "any". Used to rank Discover and matches.
+  prefMinAge  Int?
+  prefMaxAge  Int?
+  prefState   String?
+  prefSect    String?
+  prefMarital String?
+
   @@index([city])
+  @@index([state])
+  @@index([age])
   @@index([sect])
 }
 
@@ -157,7 +179,7 @@ model InterestRequest {
   fromUser User @relation("InterestFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
   toUser   User @relation("InterestTo", fields: [toUserId], references: [id], onDelete: Cascade)
 
-  status    String   @default("pending") // pending | accepted | declined
+  status    String   @default("pending") // pending | accepted | declined | expired
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -279,4 +301,20 @@ model SecurityEvent {
   conversationId    String?
   platform          String? // "ios" | "android" | "web"
   createdAt         DateTime @default(now())
+}
+
+// A member reporting another member (fake profile, harassment, etc.).
+// Kept for moderation even if the reported member later deletes their account.
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  reportedId String
+  reason     String // fake_profile | already_married | inappropriate_photo | harassment | asking_money | other
+  details    String?
+  status     String   @default("open") // open | reviewed | actioned | dismissed
+  createdAt  DateTime @default(now())
+
+  @@unique([reporterId, reportedId])
+  @@index([status, createdAt])
+  @@index([reportedId])
 }

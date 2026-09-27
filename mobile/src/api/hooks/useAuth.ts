@@ -3,6 +3,7 @@ import { accountApi, authApi } from '../client';
 import { queryClient, queryKeys } from '../queryClient';
 import { useAuthStore } from '../../store/authStore';
 import { usePushStore } from '../../store/pushStore';
+import { useOnboardingStore } from '../../store/onboardingStore';
 import type { Gender } from '../../types';
 
 export function useMe(enabled: boolean) {
@@ -57,6 +58,21 @@ export function useLogout() {
     },
     onSettled: async () => {
       usePushStore.getState().setExpoPushToken(null);
+      useOnboardingStore.getState().reset();
+      await storeLogout();
+      queryClient.clear();
+    },
+  });
+}
+
+// Permanently deletes the account on the server, then clears the local session.
+export function useDeleteAccount() {
+  const storeLogout = useAuthStore((s) => s.logout);
+  return useMutation({
+    mutationFn: () => accountApi.deleteAccount(),
+    onSuccess: async () => {
+      usePushStore.getState().setExpoPushToken(null);
+      useOnboardingStore.getState().reset();
       await storeLogout();
       queryClient.clear();
     },

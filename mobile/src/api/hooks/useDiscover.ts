@@ -1,4 +1,5 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
+import type { DiscoverFilters } from '../../types';
 import { discoverApi, photoRequestsApi, profilesApi } from '../client';
 import { queryClient, queryKeys } from '../queryClient';
 
@@ -6,6 +7,17 @@ export function useDiscover() {
   return useQuery({
     queryKey: queryKeys.discover,
     queryFn: discoverApi.list,
+  });
+}
+
+// Filtered feed, loaded 20 at a time. Keyed under queryKeys.discover so the
+// existing invalidations (block, interest, report...) refresh it too.
+export function useDiscoverFeed(filters: DiscoverFilters) {
+  return useInfiniteQuery({
+    queryKey: [...queryKeys.discover, 'feed', filters],
+    queryFn: ({ pageParam }) => discoverApi.page(filters, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
   });
 }
 

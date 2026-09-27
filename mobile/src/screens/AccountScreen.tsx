@@ -11,7 +11,7 @@ import { TabHeader } from '../components/TabHeader';
 import { Button } from '../components/Button';
 import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useProfileMe } from '../api/hooks/useProfile';
-import { useLogout, useMe } from '../api/hooks/useAuth';
+import { useDeleteAccount, useLogout, useMe } from '../api/hooks/useAuth';
 import { useRunMatchEngine } from '../api/hooks/useMatchEngine';
 import { useBlockedUsers, useUnblockUser } from '../api/hooks/useBlocks';
 import { useAuthStore } from '../store/authStore';
@@ -19,6 +19,9 @@ import { tabStrings } from '../i18n/strings';
 import { useToastStore } from '../store/uiStore';
 import type { RootStackParamList, MainTabParamList } from '../navigation/types';
 import type { BlockedUserItem, Profile } from '../types';
+import { ProfileCompletion } from '../components/ProfileCompletion';
+import { profileCompletion } from '../utils/profileCompletion';
+import { useOnboardingStore } from '../store/onboardingStore';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Account'>,
@@ -49,6 +52,8 @@ export function AccountScreen() {
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
   const gender = useAuthStore((s) => s.user?.gender ?? 'bride');
   const logout = useLogout();
+  const deleteAccount = useDeleteAccount();
+  const loadDraft = useOnboardingStore((st) => st.loadFrom);
   const showToast = useToastStore((s) => s.show);
 
   const { data: profile } = useProfileMe();
@@ -71,6 +76,36 @@ export function AccountScreen() {
     ]);
   };
 
+  // Two confirmations, because this cannot be undone.
+  const confirmDelete = () => {
+    Alert.alert('Delete your account?', 'Your profile, photo, messages and interests will be deleted for good.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Continue',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert('Are you completely sure?', 'This cannot be undone.', [
+            { text: 'Keep my account', style: 'cancel' },
+            {
+              text: 'Delete for good',
+              style: 'destructive',
+              onPress: () =>
+                deleteAccount.mutate(undefined, {
+                  onSuccess: () => showToast('Your account has been deleted.', 'success'),
+                  onError: () => showToast('Could not delete your account. Please try again.'),
+                }),
+            },
+          ]),
+      },
+    ]);
+  };
+
+  const completion = profileCompletion(profile, gender);
+  const startEdit = () => {
+    loadDraft(profile);
+    navigation.navigate('ShariahQA', { edit: true });
+  };
+
   const subscribed = me?.subscription?.status === 'active';
   const modestyQuestion = gender === 'bride' ? 'Hijab' : 'Beard';
   const polygamyQuestion = gender === 'groom' ? 'View on polygamy' : 'View on being a co-wife';
@@ -91,6 +126,8 @@ export function AccountScreen() {
             {profile?.city || '—'} · {profile?.eduProf || '—'}
           </Text>
         </View>
+
+        <ProfileCompletion percent={completion.percent} missing={completion.missing} onEdit={startEdit} />
 
         <View style={[styles.card, { backgroundColor: subscribed ? colors.lowBg : colors.surface }]}>
           <Text style={styles.eyebrow}>{tr("Subscription")}</Text>
@@ -136,12 +173,16 @@ export function AccountScreen() {
 
         <Button title={tr("Help & Support")} variant="outline" onPress={() => navigation.navigate('Support')} />
         <Button title={tr("Frequently asked questions")} variant="outline" onPress={() => navigation.navigate('FAQ')} />
+        <Button title={tr("Policies & Grievance")} variant="outline" onPress={() => navigation.navigate('Legal', { doc: 'terms' })} />
         {/* Internal tools: the Admin panel still runs on mock data, so keep both out of the
             member-facing app. They stay reachable at /health and /admin for the team. */}
+        {me?.isAdmin ? (
+          <Button title="Admin: reports & safety" variant="outline" onPress={() => navigation.navigate('Admin')} />
+        ) : null}
         {__DEV__ ? (
           <>
             <Button title={tr("App Health & Logs")} variant="outline" onPress={() => navigation.navigate('Health')} />
-            <Button title={tr("Admin Panel")} variant="outline" onPress={() => navigation.navigate('Admin')} />
+            {!me?.isAdmin ? <Button title={tr("Admin Panel")} variant="outline" onPress={() => navigation.navigate('Admin')} /> : null}
           </>
         ) : null}
 
@@ -173,6 +214,7 @@ export function AccountScreen() {
           <Text style={styles.engineBody}>
             {tr("Runs automatically once a week, scoring on location, sect, profession and religious practice. Already-matched, rejected or pending profiles are never repeated.")}
           </Text>
+          {__DEV__ ? (
           <Button
             title={tr("Run this week's refresh now (demo)")}
             variant="outline"
@@ -190,6 +232,7 @@ export function AccountScreen() {
               })
             }
           />
+          ) : null}
         </View>
 
         <Button
@@ -199,6 +242,15 @@ export function AccountScreen() {
           loading={logout.isPending}
           style={styles.logoutBtn}
         />
+
+        {/* Permanent account deletion (DPDP right to erasure). Two-step confirm. */}
+        <View style={styles.dangerBox}>
+          <Text style={styles.dangerTitle}>{tr("Delete my account")}</Text>
+          <Text style={styles.engineBody}>
+            {tr("This removes your profile, photo, messages and interests for good. It cannot be undone. Any plan you bought is not refunded.")}
+          </Text>
+          <Button title={tr("Delete my account")} variant="outline" onPress={confirmDelete} loading={deleteAccount.isPending} />
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -292,6 +344,19 @@ const styles = themedStyles(() => StyleSheet.create({
   },
   logoutBtn: {
     marginTop: 8,
+  },
+  dangerBox: {
+    marginTop: 16,
+    padding: 14,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.red,
+    borderRadius: 12,
+  },
+  dangerTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+    color: colors.red,
   },
   blockedRow: {
     flexDirection: 'row',

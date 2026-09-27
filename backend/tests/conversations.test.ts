@@ -227,7 +227,7 @@ describe("Close/reopen HTTP routes (CONTRACT §8.8)", () => {
       .expect(201);
   });
 
-  it("GET /api/chats includes accepted-but-not-both-subscribed pairs with canMessage:false instead of omitting them", async () => {
+  it("GET /api/chats: one paid person is enough to open chat for both (India audit rule)", async () => {
     // Build a pair where only one side is subscribed.
     const a = await createTestUser("bride", { subscribed: true });
     const b = await createTestUser("groom", { subscribed: false });
@@ -245,8 +245,8 @@ describe("Close/reopen HTTP routes (CONTRACT §8.8)", () => {
     const list = await request(app).get("/api/chats").set("Authorization", `Bearer ${a.token}`).expect(200);
     const row = list.body.find((c: any) => c.userId === b.user.id);
     expect(row).toBeTruthy();
-    expect(row.canMessage).toBe(false);
-    expect(row.canMessageReason).toBe("not_subscribed");
+    expect(row.canMessage).toBe(true);
+    expect(row.freeMessagesLeft).toBeNull();
   });
 
   it("a non-participant reading a conversation's messages is rejected", async () => {

@@ -1,6 +1,7 @@
 import { Server as HttpServer } from "http";
 import { Server as SocketIOServer, Socket } from "socket.io";
 import { verifyToken } from "../lib/jwt";
+import { isAllowedOrigin } from "../lib/origins";
 import { ChatMessage } from "@prisma/client";
 
 let io: SocketIOServer | null = null;
@@ -16,7 +17,12 @@ let io: SocketIOServer | null = null;
 export function attachSocket(server: HttpServer): SocketIOServer {
   io = new SocketIOServer(server, {
     path: "/socket.io",
-    cors: { origin: "*" },
+    // Only our own web app may open a chat socket from a browser.
+    cors: {
+      origin(origin, callback) {
+        callback(null, isAllowedOrigin(origin));
+      },
+    },
   });
 
   const chatNamespace = io.of("/chat");

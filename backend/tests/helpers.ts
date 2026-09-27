@@ -57,6 +57,7 @@ export function extractOtpCode(lines: string[], phone: string): string {
 /** Truncates every app table — call between test files/suites that need a clean slate. */
 export async function resetDb() {
   await prisma.$transaction([
+    prisma.report.deleteMany(),
     prisma.securityEvent.deleteMany(),
     prisma.waliShare.deleteMany(),
     prisma.photoAccessRequest.deleteMany(),

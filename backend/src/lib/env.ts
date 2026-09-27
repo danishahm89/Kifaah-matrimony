@@ -33,6 +33,9 @@ const baseSchema = z.object({
   // exists), profile photos upload to Drive instead of local disk.
   GOOGLE_SERVICE_ACCOUNT_KEY_FILE: z.string().optional(),
   GOOGLE_DRIVE_FOLDER_ID: z.string().optional(),
+  // Where NEW photos are saved: "local" (the server's UPLOAD_DIR, default)
+  // or "drive". Photos already on Drive can still be shown either way.
+  PHOTO_STORAGE: z.enum(["local", "drive"]).default("local"),
 
   SENTRY_DSN: z.string().optional(),
 
@@ -100,6 +103,7 @@ export const env = {
   PAYMENTS_BYPASS: !!data.PAYMENTS_BYPASS,
   GOOGLE_SERVICE_ACCOUNT_KEY_FILE: data.GOOGLE_SERVICE_ACCOUNT_KEY_FILE,
   GOOGLE_DRIVE_FOLDER_ID: data.GOOGLE_DRIVE_FOLDER_ID,
+  PHOTO_STORAGE: data.PHOTO_STORAGE,
 
   SENTRY_DSN: data.SENTRY_DSN,
 

@@ -1,17 +1,37 @@
 import { Router } from "express";
+import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
-import { computeScore, oppositeGender } from "../services/matchEngine";
+import { computeScore, matchReasons, oppositeGender, preferenceFit } from "../services/matchEngine";
 import { getInterestStatus, isSubscriptionActive, isUnlocked, LOCK_MESSAGE } from "../services/visibility";
 import { writeAuditLog } from "../lib/audit";
-import { blockedUserIdsFor } from "../services/blocks";
+import { blockedUserIdsFor, isBlockedPair } from "../services/blocks";
+import { signPhotoUrl } from "../lib/photoUrls";
+import { isAdminPhone } from "../lib/admin";
 import { findConversationForUsers } from "../services/conversations";
 import { getPhotoAccessStatus, getIncomingPhotoRequest } from "../services/photoAccess";
 import { createNotification } from "../lib/notifications";
 
 const router = Router();
 
+// Optional filters + paging. Without `page`, the old response (a plain array)
+// is kept so older app builds keep working.
+const discoverQuerySchema = z.object({
+  minAge: z.coerce.number().int().min(18).max(99).optional(),
+  maxAge: z.coerce.number().int().min(18).max(99).optional(),
+  city: z.string().trim().min(1).max(80).optional(),
+  state: z.string().trim().min(1).max(80).optional(),
+  sect: z.string().trim().min(1).max(80).optional(),
+  marital: z.string().trim().min(1).max(80).optional(),
+  page: z.coerce.number().int().min(1).max(1000).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
 router.get("/discover", requireAuth, async (req: AuthedRequest, res) => {
+  const q = discoverQuerySchema.safeParse(req.query);
+  if (!q.success) return res.status(400).json({ error: "invalid_input", details: q.error.flatten() });
+  const filters = q.data;
+
   const viewer = await prisma.user.findUnique({
     where: { id: req.userId! },
     include: { profile: true },
@@ -33,16 +53,35 @@ router.get("/discover", requireAuth, async (req: AuthedRequest, res) => {
     excluded.add(blockedId);
   }
 
+  // Filters run inside the database query, not on a fetched list.
+  const profileWhere: Record<string, unknown> = {};
+  if (filters.minAge != null || filters.maxAge != null) {
+    profileWhere.age = {
+      ...(filters.minAge != null ? { gte: filters.minAge } : {}),
+      ...(filters.maxAge != null ? { lte: filters.maxAge } : {}),
+    };
+  }
+  if (filters.city) profileWhere.city = { equals: filters.city, mode: "insensitive" };
+  if (filters.state) profileWhere.state = filters.state;
+  if (filters.sect) profileWhere.sect = filters.sect;
+  if (filters.marital) profileWhere.marital = filters.marital;
+
   const candidates = await prisma.user.findMany({
     where: {
       gender: oppositeGender(viewer.gender),
       id: { notIn: Array.from(excluded) },
+      suspended: false,
+      ...(Object.keys(profileWhere).length > 0 ? { profile: { is: profileWhere } } : {}),
     },
     include: { profile: true },
   });
 
   const list = candidates
-    .map((c) => ({
+    .map((c) => {
+      const fit = preferenceFit(viewer.profile, c.profile);
+      const reasons = matchReasons(viewer.profile, c.profile);
+      if (fit.set > 0 && fit.missed === 0) reasons.unshift("fits_preferences");
+      return {
       id: c.id,
       name: c.profile?.name || "Member",
       age: c.profile?.age ?? null,
@@ -50,19 +89,34 @@ router.get("/discover", requireAuth, async (req: AuthedRequest, res) => {
       sect: c.profile?.sect ?? null,
       eduProf: c.profile?.eduProf ?? null,
       score: computeScore(viewer.profile, c.profile),
+      reasons,
+      prefMissed: fit.missed,
+      state: c.profile?.state ?? null,
+      motherTongue: c.profile?.motherTongue ?? null,
+      marital: c.profile?.marital ?? null,
       photoLocked: true as const,
-    }))
-    // score >= 65 sorted first, then descending — equivalent to a plain
-    // descending sort since higher scores always precede lower ones, kept
-    // explicit here to match CONTRACT §2's wording exactly.
+      };
+    })
+    // Members who meet more of the viewer's partner preferences come first;
+    // then score >= 65 first, then descending (CONTRACT §2).
     .sort((a, b) => {
+      if (a.prefMissed !== b.prefMissed) return a.prefMissed - b.prefMissed;
       const aHigh = a.score >= 65 ? 1 : 0;
       const bHigh = b.score >= 65 ? 1 : 0;
       if (aHigh !== bHigh) return bHigh - aHigh;
       return b.score - a.score;
     });
 
-  res.json(list);
+  if (filters.page == null) return res.json(list);
+
+  const limit = filters.limit ?? 20;
+  const start = (filters.page - 1) * limit;
+  res.json({
+    items: list.slice(start, start + limit),
+    page: filters.page,
+    total: list.length,
+    hasMore: start + limit < list.length,
+  });
 });
 
 router.get("/profiles/:id", requireAuth, async (req: AuthedRequest, res) => {
@@ -77,6 +131,20 @@ router.get("/profiles/:id", requireAuth, async (req: AuthedRequest, res) => {
     include: { profile: true },
   });
   if (!candidate) return res.status(404).json({ error: "not_found" });
+
+  // Members may only open profiles of the opposite gender, and never a
+  // profile on either side of a block. Both look like "not found" so a
+  // blocked member cannot tell they were blocked.
+  // Admins can open any profile to review a report.
+  if (candidate.id !== viewer.id && !isAdminPhone(viewer.phone)) {
+    if (candidate.suspended) return res.status(404).json({ error: "not_found" });
+    if (candidate.gender !== oppositeGender(viewer.gender)) {
+      return res.status(404).json({ error: "not_found" });
+    }
+    if (await isBlockedPair(viewer.id, candidate.id)) {
+      return res.status(404).json({ error: "not_found" });
+    }
+  }
 
   const interestStatus = await getInterestStatus(viewer.id, candidate.id);
   const viewerSubscribed = await isSubscriptionActive(viewer.id);
@@ -126,6 +194,10 @@ router.get("/profiles/:id", requireAuth, async (req: AuthedRequest, res) => {
     family: p?.family ?? null,
     height: p?.height ?? null,
     marital: p?.marital ?? null,
+    state: p?.state ?? null,
+    motherTongue: p?.motherTongue ?? null,
+    education: p?.education ?? null,
+    profession: p?.profession ?? null,
     about: p?.about ?? null,
     fasting: p?.fasting ?? null,
     quran: p?.quran ?? null,
@@ -140,10 +212,12 @@ router.get("/profiles/:id", requireAuth, async (req: AuthedRequest, res) => {
     likesCustom: p?.likesCustom ?? null,
     dislikes: p?.dislikes ?? null,
     dislikesCustom: p?.dislikesCustom ?? null,
-    wali: p?.wali || "",
+    // Wali / family contact is private until the interest is mutually accepted.
+    wali: interestStatus === "accepted" ? p?.wali || "" : "",
+    hasWali: !!p?.wali,
     score: computeScore(viewer.profile, candidate.profile),
     interestStatus,
-    photoUrl: photoUnlocked ? p?.photoUrl ?? null : null,
+    photoUrl: photoUnlocked ? signPhotoUrl(p?.photoUrl) : null,
     photoAccessStatus,
     incomingPhotoRequest,
     contact: unlocked

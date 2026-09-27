@@ -3,7 +3,7 @@ import { FormCard, StepProgress } from '../components/Onboarding';
 import { tr } from '../i18n/t';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
@@ -18,12 +18,22 @@ import { useReference } from '../api/hooks/useReference';
 import { useAuthStore } from '../store/authStore';
 import { useOnboardingStore } from '../store/onboardingStore';
 import type { RootStackParamList } from '../navigation/types';
+import { findContactDetails } from '../utils/contactGuard';
+import { useProfileMe } from '../api/hooks/useProfile';
 
 export function ShariahQAScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const gender = useAuthStore((s) => s.user?.gender ?? 'bride');
   const { data: ref, isLoading } = useReference();
-  const { draft, setField } = useOnboardingStore();
+  const { draft, setField, loadFrom } = useOnboardingStore();
+  const route = useRoute<any>();
+  const editing = !!route.params?.edit;
+  const { data: savedProfile } = useProfileMe(editing);
+  // Opened straight from a link in edit mode: fill the form from the saved profile once.
+  React.useEffect(() => {
+    if (editing && savedProfile && !draft.name) loadFrom(savedProfile);
+  }, [editing, savedProfile, draft.name, loadFrom]);
+  const goBack = () => (editing ? navigation.goBack() : navigation.navigate('Welcome'));
   const [waliError, setWaliError] = useState<string | null>(null);
 
   const modestyQuestion = gender === 'bride' ? 'Hijab' : 'Beard';
@@ -36,7 +46,7 @@ export function ShariahQAScreen() {
   if (isLoading || !ref) {
     return (
       <Screen>
-        <Header title={tr("Shariah compliance")} onBack={() => navigation.navigate('Welcome')} />
+        <Header title={tr("Shariah compliance")} onBack={goBack} />
         <View style={styles.loading}>
           <ActivityIndicator color={colors.red} />
         </View>
@@ -48,7 +58,7 @@ export function ShariahQAScreen() {
 
   return (
     <Screen>
-      <Header title={tr("Shariah compliance")} onBack={() => navigation.navigate('Welcome')} />
+      <Header title={tr("Shariah compliance")} onBack={goBack} />
       <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -56,7 +66,7 @@ export function ShariahQAScreen() {
         extraScrollHeight={24}
         keyboardOpeningTime={0}
       >
-        <StepProgress step={1} total={2} label="Faith & practice" />
+        <StepProgress step={1} total={2} label={editing ? 'Edit · Faith & practice' : 'Faith & practice'} />
         <Text style={styles.intro}>{tr("A few questions so matches are compatible in practice, not just on paper.")}</Text>
 
         <FormCard icon="🕌" title="Deen" hint="Your sect and daily practice">
@@ -133,11 +143,15 @@ export function ShariahQAScreen() {
               // Fixed/required only on the bride side (§8.7) — the backend rejects an explicit
               // blank with a bare "invalid_input", so catch it here with an actionable message
               // instead of letting that reach the user. Groom side can continue with it empty.
+              if (findContactDetails(draft.wali).blocked) {
+                setWaliError("Please write only your Wali's name and relation (e.g. Father - Ahmed). Phone numbers and IDs can't be shared here.");
+                return;
+              }
               if (waliRequired && (!draft.wali || !draft.wali.trim())) {
                 setWaliError("Please add your wali's (guardian's) name to continue.");
                 return;
               }
-              navigation.navigate('ProfileSetup');
+              navigation.navigate('ProfileSetup', editing ? { edit: true } : undefined);
             }}
             style={styles.continueBtn}
           />

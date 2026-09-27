@@ -1,9 +1,13 @@
 import crypto from "crypto";
 import { Router } from "express";
+import { getPhotoAccessStatus } from "../services/photoAccess";
+import { signPhotoUrl } from "../lib/photoUrls";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
-import { isSubscriptionActive } from "../services/visibility";
+import { chatPaymentAccess } from "../services/visibility";
+import { findContactDetailsAcross, CONTACT_BLOCKED_MESSAGE } from "../lib/contactGuard";
+import { recordContactAttempt } from "../lib/contactAttempts";
 import { isBlockedPair } from "../services/blocks";
 import {
   findConversationForUsers,
@@ -31,14 +35,11 @@ async function resolveChatEligibility(userId: string, otherId: string) {
   if (conversation.status !== "ACTIVE") {
     return { conversation, canMessage: false, reason: conversationStatusLabel(conversation.status) };
   }
-  const [userSubscribed, otherSubscribed] = await Promise.all([
-    isSubscriptionActive(userId),
-    isSubscriptionActive(otherId),
-  ]);
-  if (!userSubscribed || !otherSubscribed) {
-    return { conversation, canMessage: false, reason: "not_subscribed" as const };
+  const access = await chatPaymentAccess(userId, otherId);
+  if (!access.allowed) {
+    return { conversation, canMessage: false, reason: access.reason, freeMessagesLeft: 0 };
   }
-  return { conversation, canMessage: true, reason: null };
+  return { conversation, canMessage: true, reason: null, freeMessagesLeft: access.freeMessagesLeft };
 }
 
 router.get("/", requireAuth, async (req: AuthedRequest, res) => {
@@ -78,13 +79,18 @@ router.get("/", requireAuth, async (req: AuthedRequest, res) => {
     conversations.push({
       userId: other.id,
       name: other.profile?.name || "Member",
-      photoUrl: other.profile?.photoUrl ?? null,
+      // Only show the photo if this member's photo request was accepted.
+      photoUrl:
+        (await getPhotoAccessStatus(userId, otherId)) === "accepted"
+          ? signPhotoUrl(other.profile?.photoUrl)
+          : null,
       lastMessage: lastMessage?.text ?? null,
       lastMessageAt: lastMessage?.createdAt ?? null,
       conversationId: eligibility.conversation.id,
       conversationStatus: conversationStatusLabel(eligibility.conversation.status),
       canMessage: eligibility.canMessage,
       canMessageReason: eligibility.canMessage ? null : eligibility.reason,
+      freeMessagesLeft: "freeMessagesLeft" in eligibility ? eligibility.freeMessagesLeft ?? null : null,
       archivedAt: eligibility.conversation.archivedAt,
     });
   }
@@ -132,6 +138,8 @@ router.get("/:userId/messages", requireAuth, async (req: AuthedRequest, res) => 
     chaperoneChat: viewer?.chaperoneChat ?? true,
     conversationStatus: conversationStatusLabel(eligibility.conversation.status),
     canMessage: eligibility.canMessage,
+    canMessageReason: eligibility.canMessage ? null : eligibility.reason,
+    freeMessagesLeft: "freeMessagesLeft" in eligibility ? eligibility.freeMessagesLeft ?? null : null,
   });
 });
 
@@ -153,12 +161,29 @@ router.post("/:userId/messages", requireAuth, async (req: AuthedRequest, res) =>
     return res.status(403).json({ error: "conversation_not_active" });
   }
   if (!eligibility.canMessage) {
-    return res.status(403).json({ error: "chat_not_available" });
+    return res.status(403).json({
+      error: eligibility.reason === "free_limit_reached" ? "free_limit_reached" : "chat_not_available",
+    });
   }
 
   const parsed = sendMessageSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+  }
+
+  // No phone numbers, emails, links or social IDs in chat — ever. The last
+  // few messages from this sender are checked too, to catch a number sent
+  // in pieces.
+  const recent = await prisma.chatMessage.findMany({
+    where: { fromUserId, toUserId, createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) } },
+    orderBy: { createdAt: "desc" },
+    take: 4,
+    select: { text: true },
+  });
+  const contact = findContactDetailsAcross(recent.reverse().map((m) => m.text), parsed.data.text);
+  if (contact.blocked) {
+    await recordContactAttempt(fromUserId, "chat", contact.kinds, { toUserId });
+    return res.status(422).json({ error: "contact_details_not_allowed", kinds: contact.kinds, message: CONTACT_BLOCKED_MESSAGE });
   }
 
   const message = await prisma.chatMessage.create({

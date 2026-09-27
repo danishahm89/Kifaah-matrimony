@@ -23,6 +23,9 @@ import { ApiError } from '../api/client';
 import type { Gender } from '../types';
 import { useTheme } from '../theme/ThemeContext';
 import { KifaahLogo } from '../components/KifaahLogo';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
 
 type Mode = 'pick' | 'auth';
 type AuthMode = 'signup' | 'login';
@@ -77,6 +80,7 @@ function authErrorMessage(err: unknown): string | null {
 }
 
 export function WelcomeScreen() {
+  const legalNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors: themeColors, mode, toggle } = useTheme();
   const [screenMode, setScreenMode] = useState<Mode>('pick');
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -351,6 +355,26 @@ export function WelcomeScreen() {
             />
           </View>
         )}
+        {/* Marriage-only statement and policy links (MeitY matrimonial advisory). */}
+        <View style={{ marginTop: 18, alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 12, color: themeColors.muted, textAlign: 'center', fontFamily: fonts.regular }}>
+            {tr("Kifaah is for marriage only. It is not a dating site. By continuing you agree to our")}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {([
+              ['terms', 'Terms'],
+              ['privacy', 'Privacy'],
+              ['refund', 'Refunds'],
+              ['grievance', 'Grievance'],
+            ] as const).map(([doc, label]) => (
+              <Pressable key={doc} onPress={() => legalNav.navigate('Legal', { doc })} accessibilityRole="link">
+                <Text style={{ fontSize: 12, color: themeColors.primary, fontFamily: fonts.semiBold, textDecorationLine: 'underline' }}>
+                  {tr(label)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
       </KeyboardAwareScrollView>
 
       {/* Country Picker Modal */}

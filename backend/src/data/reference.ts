@@ -103,16 +103,48 @@ export const reference = {
     "6'3\"",
     "6'4\"",
   ],
+  // Indian cities, incl. many with large Muslim communities. Sorted A–Z below.
   cities: [
-    "Hyderabad",
-    "Bengaluru",
-    "Mumbai",
-    "Delhi",
-    "Chennai",
-    "Kolkata",
-    "Pune",
-    "Lucknow",
-    "Ahmedabad",
-    "Jaipur",
+    "Hyderabad", "Bengaluru", "Mumbai", "Delhi", "Chennai", "Kolkata", "Pune", "Lucknow", "Ahmedabad", "Jaipur",
+    "Aligarh", "Agra", "Ajmer", "Aurangabad", "Bareilly", "Bhopal", "Bhiwandi", "Bijapur", "Calicut (Kozhikode)",
+    "Cuttack", "Deoband", "Dhanbad", "Gulbarga (Kalaburagi)", "Guwahati", "Gaya", "Indore", "Jabalpur", "Jammu",
+    "Kanpur", "Kochi", "Kolhapur", "Kota", "Kurnool", "Malappuram", "Malegaon", "Mangaluru", "Meerut", "Moradabad",
+    "Mysuru", "Nagpur", "Nanded", "Nashik", "Noida", "Gurugram", "Ghaziabad", "Patna", "Prayagraj", "Raipur",
+    "Rampur", "Ranchi", "Saharanpur", "Srinagar", "Surat", "Thane", "Thiruvananthapuram", "Tonk", "Udaipur",
+    "Vadodara", "Varanasi", "Vellore", "Vijayawada", "Visakhapatnam", "Amroha", "Azamgarh", "Bhagalpur",
+    "Bhatkal", "Burhanpur", "Darbhanga", "Firozabad", "Gorakhpur", "Kannur", "Kishanganj", "Mau", "Muzaffarnagar",
+    "Murshidabad", "Nellore", "Palakkad", "Sambhal", "Shahjahanpur", "Siwan", "Thrissur", "Tirunelveli",
+    "Ambur", "Vaniyambadi", "Kasaragod", "Kargil", "Leh",
+  ],
+  // All states and union territories of India.
+  states: [
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
+    "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+    "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
+    "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh",
+    "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep",
+    "Puducherry", "Outside India",
+  ],
+  motherTongues: [
+    "Urdu", "Hindi", "Bengali", "Malayalam", "Tamil", "Telugu", "Kannada", "Marathi", "Gujarati", "Kashmiri",
+    "Punjabi", "Assamese", "Odia", "Bhojpuri", "Maithili", "Konkani", "Sindhi", "Memoni", "Kutchi", "Deccani",
+    "Beary", "Navayathi", "Arabic", "English", "Other",
+  ],
+  educationOptions: [
+    "Hafiz / Aalim / Islamic studies", "Below 10th", "10th", "12th", "Diploma", "ITI",
+    "B.A.", "B.Com", "B.Sc.", "BBA", "BCA", "B.Tech / B.E.", "B.Arch", "B.Pharm", "B.Ed", "B.Sc. Nursing",
+    "LLB", "MBBS", "BDS", "BUMS (Unani)", "BAMS / BHMS",
+    "M.A.", "M.Com", "M.Sc.", "MBA / PGDM", "MCA", "M.Tech / M.E.", "M.Pharm", "M.Ed", "LLM", "MD / MS",
+    "CA / CS / ICWA", "PhD", "Other",
+  ],
+  professionOptions: [
+    "Software / IT", "Engineer (non-IT)", "Doctor", "Dentist", "Nurse / Healthcare", "Pharmacist",
+    "Teacher / Lecturer", "Professor / Researcher", "Imam / Islamic scholar", "Lawyer", "Chartered accountant",
+    "Banking / Finance", "Government job", "Defence / Police", "Business owner", "Family business",
+    "Trader / Shop owner", "Sales / Marketing", "HR / Admin", "Designer / Architect", "Media / Journalism",
+    "Civil services (IAS/IPS)", "Working abroad (Gulf)", "Working abroad (other)", "Skilled trade",
+    "Driver / Transport", "Homemaker", "Student", "Not working", "Other",
   ],
 };
+
+reference.cities.sort((a, b) => a.localeCompare(b));

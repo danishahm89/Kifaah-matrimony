@@ -40,6 +40,15 @@ const configSchema = z.object({
   otp: z.object({
     consoleProviderTtlMinutes: z.number().positive(),
   }),
+  // Chat after a mutual accept: if neither person has a plan, each can still
+  // send this many messages. One paid person unlocks the chat for both.
+  chat: z
+    .object({ freeMessagesPerPerson: z.number().int().min(0).max(100) })
+    .default({ freeMessagesPerPerson: 5 }),
+  // Pending interests nobody answered are marked "expired" after this many days.
+  interests: z
+    .object({ expireAfterDays: z.number().int().min(1).max(365) })
+    .default({ expireAfterDays: 30 }),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
