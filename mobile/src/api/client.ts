@@ -1,4 +1,5 @@
 import { useAuthStore } from '../store/authStore';
+import { logger } from '../utils/logger';
 import type {
   BlockedUserItem,
   ChatMessage,
