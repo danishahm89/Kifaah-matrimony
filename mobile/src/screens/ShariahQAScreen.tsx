@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FormCard, StepProgress } from '../components/Onboarding';
 import { tr } from '../i18n/t';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -55,75 +56,76 @@ export function ShariahQAScreen() {
         extraScrollHeight={24}
         keyboardOpeningTime={0}
       >
+        <StepProgress step={1} total={2} label="Faith & practice" />
         <Text style={styles.intro}>{tr("A few questions so matches are compatible in practice, not just on paper.")}</Text>
 
-        <View>
-          <FieldLabel>{tr("Sect / Madhab")}</FieldLabel>
-          <SelectField value={draft.sect ?? ''} options={ref.sects} onChange={(v) => setField('sect', v)} />
-        </View>
+        <FormCard icon="🕌" title="Deen" hint="Your sect and daily practice">
+          <View>
+            <FieldLabel>{tr("Sect / Madhab")}</FieldLabel>
+            <SelectField title="Sect / Madhab" value={draft.sect ?? ''} options={ref.sects} onChange={(v) => setField('sect', v)} />
+          </View>
+          <View>
+            <FieldLabel>{tr("Prayer (Salah) regularity")}</FieldLabel>
+            <SegmentRow options={asOptions(ref.prayerOptions)} value={draft.prayer ?? ''} onChange={(v) => setField('prayer', v)} />
+          </View>
+          <View>
+            <FieldLabel>{modestyQuestion}</FieldLabel>
+            <SegmentRow
+              options={asOptions(gender === 'bride' ? ref.modestyOptions.bride : ref.modestyOptions.groom)}
+              value={draft.modesty ?? ''}
+              onChange={(v) => setField('modesty', v)}
+            />
+          </View>
+        </FormCard>
 
-        <View>
-          <FieldLabel>{tr("Prayer (Salah) regularity")}</FieldLabel>
-          <SegmentRow options={asOptions(ref.prayerOptions)} value={draft.prayer ?? ''} onChange={(v) => setField('prayer', v)} wrap={false} />
-        </View>
+        {gender !== 'groom' ? (
+          <FormCard icon="🛡" title="Your Wali" hint="Required for sisters, in line with Islamic etiquette">
+            <View style={styles.noticeBox}>
+              <ShieldIcon />
+              <Text style={styles.noticeText}>
+                {tr('A wali (guardian) is required to be involved before contact is exchanged. This is fixed, not optional.')}
+              </Text>
+            </View>
+            <View>
+              <FieldLabel>{tr("Wali / guardian's name")}</FieldLabel>
+              <TextField
+                value={draft.wali ?? ''}
+                onChangeText={(v) => {
+                  setField('wali', v);
+                  if (waliError) setWaliError(null);
+                }}
+                placeholder={tr("e.g. Father — Abdul Kareem")}
+              />
+              {waliError ? <Text style={styles.error}>{waliError}</Text> : null}
+            </View>
+          </FormCard>
+        ) : null}
 
-        <View>
-          <FieldLabel>{modestyQuestion}</FieldLabel>
-          <SegmentRow
-            options={asOptions(gender === 'bride' ? ref.modestyOptions.bride : ref.modestyOptions.groom)}
-            value={draft.modesty ?? ''}
-            onChange={(v) => setField('modesty', v)}
-          />
-        </View>
+        <FormCard icon="📖" title="Worship" hint="Fasting, Qur'an and Hajj">
+          <View>
+            <FieldLabel>{tr("Fasting (Ramadan & voluntary)")}</FieldLabel>
+            <SegmentRow options={asOptions(ref.fastingOptions)} value={draft.fasting ?? ''} onChange={(v) => setField('fasting', v)} />
+          </View>
+          <View>
+            <FieldLabel>{tr("Qur'an recitation")}</FieldLabel>
+            <SegmentRow options={asOptions(ref.quranOptions)} value={draft.quran ?? ''} onChange={(v) => setField('quran', v)} />
+          </View>
+          <View>
+            <FieldLabel>{tr("Hajj / Umrah")}</FieldLabel>
+            <SegmentRow options={asOptions(ref.hajjOptions)} value={draft.hajj ?? ''} onChange={(v) => setField('hajj', v)} />
+          </View>
+        </FormCard>
 
-        {gender !== 'groom' && (
-        <View style={styles.noticeBox}>
-          <ShieldIcon />
-          <Text style={styles.noticeText}>
-            {waliRequired
-              ? 'A wali (guardian) is required to be involved before contact is exchanged. This is fixed, not optional.'
-              : "You can optionally add a wali (guardian) contact for your side — this step can be skipped."}
-          </Text>
-        </View>
-        )}
-        {gender !== 'groom' && (
-        <View>
-          <FieldLabel>{tr("Wali / guardian's name")}{waliRequired ? '' : ' (optional)'}</FieldLabel>
-          <TextField
-            value={draft.wali ?? ''}
-            onChangeText={(v) => {
-              setField('wali', v);
-              if (waliError) setWaliError(null);
-            }}
-            placeholder={tr("e.g. Father — Abdul Kareem")}
-          />
-          {waliError ? <Text style={styles.error}>{waliError}</Text> : null}
-        </View>
-        )}
-
-        <View>
-          <FieldLabel>{tr("Fasting (Ramadan & voluntary)")}</FieldLabel>
-          <SegmentRow options={asOptions(ref.fastingOptions)} value={draft.fasting ?? ''} onChange={(v) => setField('fasting', v)} />
-        </View>
-
-        <View>
-          <FieldLabel>{tr("Qur'an recitation")}</FieldLabel>
-          <SegmentRow options={asOptions(ref.quranOptions)} value={draft.quran ?? ''} onChange={(v) => setField('quran', v)} />
-        </View>
-
-        <View>
-          <FieldLabel>{tr("Hajj / Umrah")}</FieldLabel>
-          <SegmentRow options={asOptions(ref.hajjOptions)} value={draft.hajj ?? ''} onChange={(v) => setField('hajj', v)} />
-        </View>
-
-        <View>
-          <FieldLabel>{polygamyQuestion}</FieldLabel>
-          <SegmentRow
-            options={asOptions(gender === 'groom' ? ref.polygamyOptions.groom : ref.polygamyOptions.bride)}
-            value={draft.polygamy ?? ''}
-            onChange={(v) => setField('polygamy', v)}
-          />
-        </View>
+        <FormCard icon="🤝" title="Marriage views">
+          <View>
+            <FieldLabel>{polygamyQuestion}</FieldLabel>
+            <SegmentRow
+              options={asOptions(gender === 'groom' ? ref.polygamyOptions.groom : ref.polygamyOptions.bride)}
+              value={draft.polygamy ?? ''}
+              onChange={(v) => setField('polygamy', v)}
+            />
+          </View>
+        </FormCard>
 
           <Button
             title={tr("Continue")}

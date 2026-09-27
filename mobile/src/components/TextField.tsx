@@ -17,17 +17,19 @@ export function TextField(props: TextInputProps & { multiline?: boolean }) {
 
   const borderColor = focusAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [colors.borderStrong, colors.red],
+    outputRange: [colors.border, colors.primary],
   });
 
   return (
     <Animated.View style={[styles.input, props.multiline && styles.multiline, { borderColor }]}>
       <TextInput
         placeholderTextColor={colors.muted}
+        {...props}
+        // Our focus handlers must come after the spread, or the caller's props replace them and
+        // the focus highlight never shows.
         style={[styles.inner, props.multiline && styles.multilineInner, props.style]}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        {...props}
       />
     </Animated.View>
   );
@@ -35,16 +37,16 @@ export function TextField(props: TextInputProps & { multiline?: boolean }) {
 
 const styles = themedStyles(() => StyleSheet.create({
   input: {
-    minHeight: 40,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: 8,
+    minHeight: 46,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 12,
   },
   inner: {
     flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.ink,

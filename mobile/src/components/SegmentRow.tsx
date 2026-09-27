@@ -24,9 +24,19 @@ export function SegmentRow({ options, value, onChange, wrap = true }: Props) {
           <Pressable
             key={opt.value}
             onPress={() => onChange(opt.value)}
-            style={[styles.seg, active ? styles.segOn : styles.segOff]}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: active }}
+            style={({ hovered, pressed }: any) => [
+              styles.seg,
+              active ? styles.segOn : styles.segOff,
+              !active && (hovered || pressed) && styles.segHover,
+              pressed && { transform: [{ scale: 0.97 }] },
+            ]}
           >
-            <Text style={[styles.text, { color: active ? colors.bg : colors.ink }]}>{tr(opt.label)}</Text>
+            <Text style={[styles.text, { color: active ? colors.white : colors.ink }]}>
+              {active ? '✓ ' : ''}
+              {tr(opt.label)}
+            </Text>
           </Pressable>
         );
       })}
@@ -43,22 +53,27 @@ const styles = themedStyles(() => StyleSheet.create({
     flexWrap: 'wrap',
   },
   seg: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
+    borderRadius: 22,
   },
   segOn: {
-    backgroundColor: colors.red,
-    borderColor: colors.red,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   segOff: {
-    backgroundColor: 'transparent',
-    borderColor: colors.borderStrong,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+  },
+  segHover: {
+    borderColor: colors.primary,
+    backgroundColor: colors.greenBg,
   },
   text: {
     // Prototype uses weight 700 for segmented buttons; only 400/600/800 are loaded, so
     // extraBold (800) is the closer visual match for this emphasis-level text.
     fontFamily: fonts.extraBold,
-    fontSize: 12,
+    fontSize: 13,
   },
 }));

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { FormCard, StepProgress } from '../components/Onboarding';
+import { PhotoPicker } from '../components/PhotoPicker';
 import { tr } from '../i18n/t';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -25,12 +27,41 @@ import type { RootStackParamList } from '../navigation/types';
 const OTHER_SPECIFY = 'Other (specify)';
 const OTHER_CITY = 'Other (type below)';
 
+
+const SUGGESTIONS: Record<'bride' | 'groom', { label: string; text: string }[]> = {
+  bride: [
+    { label: 'Balanced', text: '' },
+    {
+      label: 'Family-focused',
+      text: "Family means a lot to me. I pray regularly, enjoy cooking and quiet time at home, and I'm looking for a practicing, kind and responsible brother who wants a calm, loving home built on the Sunnah.",
+    },
+    {
+      label: 'Career & deen',
+      text: "Alhamdulillah I'm working and keep my deen at the centre of my life. I'm looking for a practicing brother who respects my ambitions and wants us to grow in faith and in life together.",
+    },
+  ],
+  groom: [
+    { label: 'Balanced', text: '' },
+    {
+      label: 'Family-focused',
+      text: "I'm a family person who prays regularly and tries to follow the Sunnah at home. I'm looking for a practicing, kind-hearted sister who values family and wants to build a peaceful home together.",
+    },
+    {
+      label: 'Career & deen',
+      text: "I'm settled in my career and keep my deen first. I'm looking for a practicing sister with good character who wants a marriage of mutual respect, support and growing closer to Allah together.",
+    },
+  ],
+};
+
 const SUGGEST_ABOUT = {
   bride:
     "I try to balance faith, family and my career. I pray regularly and value modesty. Looking for a practicing brother who is kind, responsible and ready to build a home rooted in Islamic values together.",
   groom:
     "I try to stay grounded in my deen while building my career. I pray regularly and want a marriage based on mutual respect. Looking for a practicing sister who values family and wants to grow together in faith.",
 };
+
+SUGGESTIONS.bride[0].text = SUGGEST_ABOUT.bride;
+SUGGESTIONS.groom[0].text = SUGGEST_ABOUT.groom;
 
 export function ProfileSetupScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -141,161 +172,153 @@ export function ProfileSetupScreen() {
         extraScrollHeight={24}
         keyboardOpeningTime={0}
       >
-        <View style={styles.sideBySide}>
-          <View style={styles.flex1}>
-            <FieldLabel>{tr("Full name")}</FieldLabel>
-            <TextField value={draft.name ?? ''} onChangeText={(v) => setField('name', v)} placeholder={tr("As shown to other members")} />
+        <StepProgress step={2} total={2} label="About you" />
+
+        <FormCard icon="📷" title="Profile photo" hint="Optional, but it helps">
+          <PhotoPicker
+            gender={gender}
+            uri={photoUri}
+            uploading={uploadPhoto.isPending}
+            error={photoErrorMessage}
+            onPick={pickPhoto}
+          />
+        </FormCard>
+
+        <FormCard icon="👤" title="The basics">
+          <View style={styles.sideBySide}>
+            <View style={styles.flex1}>
+              <FieldLabel>{tr("Full name")}</FieldLabel>
+              <TextField value={draft.name ?? ''} onChangeText={(v) => setField('name', v)} placeholder={tr("As shown to other members")} />
+            </View>
+            <View style={styles.flex1}>
+              <FieldLabel>{tr("Age")}</FieldLabel>
+              <TextField
+                value={draft.age != null ? String(draft.age) : ''}
+                onChangeText={(v) => setField('age', v.replace(/[^0-9]/g, '') ? Number(v.replace(/[^0-9]/g, '')) : undefined)}
+                placeholder="27"
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+            </View>
           </View>
-          <View style={styles.flex1}>
-            <FieldLabel>{tr("Age")}</FieldLabel>
+          <View style={styles.sideBySide}>
+            <View style={styles.flex1}>
+              <FieldLabel>{tr("Height")}</FieldLabel>
+              <SelectField title="Height" value={draft.height ?? ''} options={ref.heights} onChange={(v) => setField('height', v)} />
+            </View>
+            <View style={styles.flex1}>
+              <FieldLabel>{tr("Location / city")}</FieldLabel>
+              <SelectField title="Location / city" searchable value={customCityMode ? OTHER_CITY : draft.city ?? ''} options={[...ref.cities, OTHER_CITY]} onChange={onCityChange} />
+              {customCityMode ? (
+                <TextField
+                  value={draft.city ?? ''}
+                  onChangeText={(v) => setField('city', v)}
+                  placeholder={tr("Type your city")}
+                  style={{ marginTop: 8 }}
+                />
+              ) : null}
+            </View>
+          </View>
+          <View>
+            <FieldLabel>{tr("Marital status")}</FieldLabel>
+            <SegmentRow options={asOptions(ref.maritalOptions)} value={draft.marital ?? ''} onChange={(v) => setField('marital', v)} />
+          </View>
+        </FormCard>
+
+        <FormCard icon="🎓" title="Education & family">
+          <View>
+            <FieldLabel>{tr("Education & profession")}</FieldLabel>
+            <SelectField title="Education & profession" value={draft.eduProf ?? ''} options={ref.eduProfOptions} onChange={onEduProfChange} />
+          </View>
+          <View>
+            <FieldLabel>{tr("Family background")}</FieldLabel>
             <TextField
-              value={draft.age != null ? String(draft.age) : ''}
-              onChangeText={(v) => setField('age', v.replace(/[^0-9]/g, '') ? Number(v.replace(/[^0-9]/g, '')) : undefined)}
-              placeholder="e.g. 27"
-              keyboardType="number-pad"
+              value={draft.family ?? ''}
+              onChangeText={(v) => setField('family', v)}
+              placeholder={tr("e.g. Middle-class, one married sister")}
             />
           </View>
-        </View>
+        </FormCard>
 
-        <View>
-          <FieldLabel>{tr("Photo")}</FieldLabel>
-          <Pressable style={styles.photoBox} onPress={pickPhoto}>
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.photoImage} />
-            ) : (
-              <>
-                <StripePattern />
-                <View style={styles.photoOverlay}>
-                  <Text style={styles.photoText}>{tr("DROP")}{'\n'}{tr("PHOTO")}</Text>
-                </View>
-              </>
-            )}
-            {uploadPhoto.isPending ? (
-              <View style={styles.photoOverlay}>
-                <ActivityIndicator color={colors.ink} />
-              </View>
-            ) : null}
-          </Pressable>
-          <Text style={styles.photoNote}>{tr("Stays blurred to everyone else until they subscribe and you accept their interest.")}</Text>
-          {photoErrorMessage ? <Text style={styles.error}>{photoErrorMessage}</Text> : null}
-        </View>
-
-        <View>
-          <FieldLabel>{tr("Education & profession")}</FieldLabel>
-          <SelectField value={draft.eduProf ?? ''} options={ref.eduProfOptions} onChange={onEduProfChange} />
-        </View>
-
-        <View>
-          <FieldLabel>{tr("Family background")}</FieldLabel>
-          <TextField
-            value={draft.family ?? ''}
-            onChangeText={(v) => setField('family', v)}
-            placeholder={tr("e.g. Middle-class, one married sister")}
-          />
-        </View>
-
-        <View style={styles.sideBySide}>
-          <View style={styles.flex1}>
-            <FieldLabel>{tr("Height")}</FieldLabel>
-            <SelectField value={draft.height ?? ''} options={ref.heights} onChange={(v) => setField('height', v)} />
-          </View>
-          <View style={styles.flex1}>
-            <FieldLabel>{tr("Location / city")}</FieldLabel>
-            <SelectField value={draft.city ?? ''} options={[...ref.cities, OTHER_CITY]} onChange={onCityChange} />
-            {customCityMode ? (
+        <FormCard icon="🌿" title="Lifestyle & habits">
+          <View>
+            <FieldLabel>{tr("Diet")}</FieldLabel>
+            <SelectField title="Diet" value={draft.diet ?? ''} options={ref.dietOptions} onChange={(v) => setField('diet', v)} />
+            {draft.diet === OTHER_SPECIFY ? (
               <TextField
-                value={draft.city ?? ''}
-                onChangeText={(v) => setField('city', v)}
-                placeholder={tr("Type your city")}
+                value={draft.dietCustom ?? ''}
+                onChangeText={(v) => setField('dietCustom', v)}
+                placeholder={tr("Describe your diet")}
                 style={{ marginTop: 8 }}
               />
             ) : null}
           </View>
-        </View>
+          <View>
+            <FieldLabel>{tr("Smoking")}</FieldLabel>
+            <SegmentRow options={asOptions(ref.smokingOptions)} value={draft.smoking ?? ''} onChange={(v) => setField('smoking', v)} />
+          </View>
+          <View>
+            <FieldLabel>{tr("Habits")}</FieldLabel>
+            <SelectField title="Habits" value={draft.habits ?? ''} options={ref.habitsOptions} onChange={(v) => setField('habits', v)} />
+            {draft.habits === OTHER_SPECIFY ? (
+              <TextField
+                value={draft.habitsCustom ?? ''}
+                onChangeText={(v) => setField('habitsCustom', v)}
+                placeholder={tr("Describe your habits")}
+                style={{ marginTop: 8 }}
+              />
+            ) : null}
+          </View>
+          <View style={styles.sideBySide}>
+            <View style={styles.flex1}>
+              <FieldLabel>{tr("Likes")}</FieldLabel>
+              <SelectField title="Likes" value={draft.likes ?? ''} options={ref.likesOptions} onChange={(v) => setField('likes', v)} />
+            {draft.likes === OTHER_SPECIFY ? (
+              <TextField
+                value={draft.likesCustom ?? ''}
+                onChangeText={(v) => setField('likesCustom', v)}
+                placeholder={tr("Describe what you like")}
+                style={{ marginTop: 8 }}
+              />
+            ) : null}
+            </View>
+            <View style={styles.flex1}>
+              <FieldLabel>{tr("Dislikes")}</FieldLabel>
+              <SelectField title="Dislikes" value={draft.dislikes ?? ''} options={ref.dislikesOptions} onChange={(v) => setField('dislikes', v)} />
+            {draft.dislikes === OTHER_SPECIFY ? (
+              <TextField
+                value={draft.dislikesCustom ?? ''}
+                onChangeText={(v) => setField('dislikesCustom', v)}
+                placeholder={tr("Describe your dislikes")}
+                style={{ marginTop: 8 }}
+              />
+            ) : null}
+            </View>
+          </View>
+        </FormCard>
 
-        <View>
-          <FieldLabel>{tr("Marital status")}</FieldLabel>
-          <SegmentRow options={asOptions(ref.maritalOptions)} value={draft.marital ?? ''} onChange={(v) => setField('marital', v)} />
-        </View>
-
-        <View style={styles.sectionDivider}>
-          <Text style={styles.sectionLabel}>{tr("Lifestyle & habits")}</Text>
-        </View>
-
-        <View>
-          <FieldLabel>{tr("Diet")}</FieldLabel>
-          <SelectField value={draft.diet ?? ''} options={ref.dietOptions} onChange={(v) => setField('diet', v)} />
-          {draft.diet === OTHER_SPECIFY ? (
-            <TextField
-              value={draft.dietCustom ?? ''}
-              onChangeText={(v) => setField('dietCustom', v)}
-              placeholder={tr("Describe your diet")}
-              style={{ marginTop: 8 }}
-            />
-          ) : null}
-        </View>
-
-        <View>
-          <FieldLabel>{tr("Smoking")}</FieldLabel>
-          <SegmentRow options={asOptions(ref.smokingOptions)} value={draft.smoking ?? ''} onChange={(v) => setField('smoking', v)} />
-        </View>
-
-        <View>
-          <FieldLabel>{tr("Habits")}</FieldLabel>
-          <SelectField value={draft.habits ?? ''} options={ref.habitsOptions} onChange={(v) => setField('habits', v)} />
-          {draft.habits === OTHER_SPECIFY ? (
-            <TextField
-              value={draft.habitsCustom ?? ''}
-              onChangeText={(v) => setField('habitsCustom', v)}
-              placeholder={tr("Describe your habits")}
-              style={{ marginTop: 8 }}
-            />
-          ) : null}
-        </View>
-
-        <View>
-          <FieldLabel>{tr("Likes")}</FieldLabel>
-          <SelectField value={draft.likes ?? ''} options={ref.likesOptions} onChange={(v) => setField('likes', v)} />
-          {draft.likes === OTHER_SPECIFY ? (
-            <TextField
-              value={draft.likesCustom ?? ''}
-              onChangeText={(v) => setField('likesCustom', v)}
-              placeholder={tr("Describe what you like")}
-              style={{ marginTop: 8 }}
-            />
-          ) : null}
-        </View>
-
-        <View>
-          <FieldLabel>{tr("Dislikes")}</FieldLabel>
-          <SelectField value={draft.dislikes ?? ''} options={ref.dislikesOptions} onChange={(v) => setField('dislikes', v)} />
-          {draft.dislikes === OTHER_SPECIFY ? (
-            <TextField
-              value={draft.dislikesCustom ?? ''}
-              onChangeText={(v) => setField('dislikesCustom', v)}
-              placeholder={tr("Describe your dislikes")}
-              style={{ marginTop: 8 }}
-            />
-          ) : null}
-        </View>
-
-        <View>
-          <View style={styles.aboutHeader}>
-            <FieldLabel>{tr("About me / what I'm looking for")}</FieldLabel>
-            <Button
-              title={tr("Suggest for me")}
-              variant="text"
-              onPress={() => setField('about', SUGGEST_ABOUT[gender])}
-            />
+        <FormCard icon="✍️" title="About me / what I'm looking for" hint="Tap a suggestion to start, then make it yours">
+          <View style={styles.suggestRow}>
+            {SUGGESTIONS[gender].map((sug) => (
+              <Pressable
+                key={sug.label}
+                onPress={() => setField('about', sug.text)}
+                style={({ hovered }: any) => [styles.suggestChip, hovered && styles.suggestChipHover]}
+              >
+                <Text style={styles.suggestText}>✨ {tr(sug.label)}</Text>
+              </Pressable>
+            ))}
           </View>
           <TextField
             value={draft.about ?? ''}
             onChangeText={(v) => setField('about', v)}
             placeholder={tr("A few lines about you and what you're looking for in a partner.")}
             multiline
-            numberOfLines={4}
+            numberOfLines={5}
+            maxLength={600}
           />
-        </View>
+          <Text style={styles.counter}>{(draft.about ?? '').length}/600</Text>
+        </FormCard>
 
         {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
           <Button title={tr("Enter Kifaah")} onPress={finish} loading={updateProfile.isPending} style={styles.finishBtn} />
@@ -305,6 +328,18 @@ export function ProfileSetupScreen() {
 }
 
 const styles = themedStyles(() => StyleSheet.create({
+  suggestRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  suggestChip: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: colors.lowBg,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  suggestChipHover: { backgroundColor: colors.greenBg, borderColor: colors.primary },
+  suggestText: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.ink },
+  counter: { alignSelf: 'flex-end', fontFamily: fonts.regular, fontSize: 11, color: colors.muted },
   loading: {
     flex: 1,
     alignItems: 'center',
