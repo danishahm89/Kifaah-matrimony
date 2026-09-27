@@ -56,7 +56,8 @@ export function TabHeader({ title }: Props) {
   };
 
   return (
-    <View>
+    // zIndex keeps the open notification panel above the list below the header.
+    <View style={{ zIndex: 50, position: 'relative' }}>
       <View style={[styles.row, { borderBottomColor: themeColors.border }]}>
         <Text style={[styles.title, { color: themeColors.ink }]}>{title}</Text>
         <View style={styles.actions}>
@@ -85,6 +86,9 @@ export function TabHeader({ title }: Props) {
         <View style={[styles.panel, { backgroundColor: themeColors.bgCard, borderColor: themeColors.borderStrong }]}>
           <View style={[styles.panelHeader, { borderBottomColor: themeColors.border }]}>
             <Text style={[styles.panelTitle, { color: themeColors.ink }]}>Notifications</Text>
+            <Pressable onPress={() => setNotifOpen(false)} hitSlop={10} accessibilityLabel="Close notifications">
+              <Text style={{ fontSize: 16, color: themeColors.muted }}>✕</Text>
+            </Pressable>
           </View>
           {notifications.length > 0 ? (
             <ScrollView style={styles.panelList}>
@@ -99,7 +103,7 @@ export function TabHeader({ title }: Props) {
               ))}
             </ScrollView>
           ) : (
-            <Text style={[styles.empty, { color: themeColors.muted }]}>No recommendations yet.</Text>
+            <Text style={[styles.empty, { color: themeColors.muted }]}>No notifications yet.</Text>
           )}
         </View>
       ) : null}
@@ -168,8 +172,12 @@ const styles = themedStyles(() => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
     maxHeight: 320,
-    zIndex: 30,
+    zIndex: 60,
     elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
   panelHeader: {
     paddingVertical: 10,
