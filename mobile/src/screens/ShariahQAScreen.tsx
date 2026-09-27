@@ -11,7 +11,7 @@ import { FieldLabel } from '../components/FieldLabel';
 import { SelectField } from '../components/SelectField';
 import { SegmentRow } from '../components/SegmentRow';
 import { ShieldIcon } from '../icons';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useReference } from '../api/hooks/useReference';
 import { useAuthStore } from '../store/authStore';
 import { useOnboardingStore } from '../store/onboardingStore';
@@ -143,7 +143,7 @@ export function ShariahQAScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   error: {
     fontFamily: fonts.semiBold,
     fontSize: 12,
@@ -185,4 +185,4 @@ const styles = StyleSheet.create({
   continueBtn: {
     marginTop: 8,
   },
-});
+}));

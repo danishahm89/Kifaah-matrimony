@@ -15,6 +15,7 @@ import { PricingScreen } from '../screens/PricingScreen';
 import { PaymentScreen } from '../screens/PaymentScreen';
 import { ChatThreadScreen } from '../screens/ChatThreadScreen';
 import { FAQScreen } from '../screens/FAQScreen';
+import { SupportScreen } from '../screens/SupportScreen';
 import { HealthScreen } from '../screens/HealthScreen';
 import { AdminScreen } from '../screens/AdminScreen';
 
@@ -43,8 +44,9 @@ function MainStack() {
       <Stack.Screen name="Payment" component={PaymentScreen} />
       <Stack.Screen name="ChatThread" component={ChatThreadScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
-          <Stack.Screen name="Health" component={HealthScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Admin" component={AdminScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Support" component={SupportScreen} />
+      <Stack.Screen name="Health" component={HealthScreen} />
+      <Stack.Screen name="Admin" component={AdminScreen} />
     </Stack.Navigator>
   );
 }

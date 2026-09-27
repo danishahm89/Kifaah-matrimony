@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger, LogEntry } from '../utils/logger';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { API_BASE_URL } from '../api/client';
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -133,8 +133,8 @@ export function HealthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background ?? '#f5f5f5' },
+const styles = themedStyles(() => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg ?? '#f5f5f5' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
@@ -173,4 +173,4 @@ const styles = StyleSheet.create({
   logMsg: { fontSize: 11, color: '#333', flex: 1 },
   logTime: { fontSize: 10, color: '#aaa' },
   emptyLogs: { color: '#aaa', textAlign: 'center', paddingVertical: 20 },
-});
+}));

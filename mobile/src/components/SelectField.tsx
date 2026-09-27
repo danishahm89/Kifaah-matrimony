@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 
 interface Props {
   value: string;
@@ -45,7 +45,7 @@ export function SelectField({ value, options, onChange, placeholder = 'Select...
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   field: {
     minHeight: 40,
     paddingHorizontal: 10,
@@ -103,4 +103,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.ink,
   },
-});
+}));

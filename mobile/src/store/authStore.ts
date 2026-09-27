@@ -1,6 +1,23 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import * as NativeSecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import type { User } from '../types';
+
+// expo-secure-store has no web implementation, so on web every call threw and the session lived
+// only in memory — a page refresh or browser back logged the person out. Use localStorage there.
+const SecureStore = Platform.OS === 'web'
+  ? {
+      getItemAsync: async (k: string) => {
+        try { return window.localStorage.getItem(k); } catch { return null; }
+      },
+      setItemAsync: async (k: string, v: string) => {
+        try { window.localStorage.setItem(k, v); } catch { /* storage blocked */ }
+      },
+      deleteItemAsync: async (k: string) => {
+        try { window.localStorage.removeItem(k); } catch { /* storage blocked */ }
+      },
+    }
+  : NativeSecureStore;
 
 const TOKEN_KEY = 'kifaah_token';
 const REFRESH_TOKEN_KEY = 'kifaah_refresh_token';

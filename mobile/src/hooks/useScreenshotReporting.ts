@@ -1,35 +1,52 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
-import * as ScreenCapture from 'expo-screen-capture';
 import { securityApi } from '../api/client';
 
-// CONTRACT.md §8.10 — screenshot protection. `usePreventScreenCapture()` sets Android's
-// FLAG_SECURE for as long as the owning screen is mounted (the only platform where prevention is
-// actually possible — iOS/web can only ever be *notified* after the fact, never blocked).
-// `useScreenshotListener` fires on both iOS and Android when one is taken; each firing is
-// reported to the backend, which creates a SecurityEvent and notifies the *other* participant.
-//
-// LIMITATION (also documented in mobile/README.md): this cannot detect screen recording, a second
-// device photographing the screen, or — on iOS — be prevented at all, only detected after the
-// fact. Web is out of scope for this pass.
+// CONTRACT.md §8.10 — screenshot protection. Native only: expo-screen-capture crashes on web
+// (addListener is not a function), so all its calls are guarded inside the useEffect so that
+// the hook itself is always called unconditionally (no rules-of-hooks violation).
 export function useScreenshotReporting(conversationId?: string, targetUserId?: string) {
-  ScreenCapture.usePreventScreenCapture();
-
   useEffect(() => {
-    // Android additionally requires READ_MEDIA_IMAGES/READ_EXTERNAL_STORAGE to fire the
-    // screenshot listener at all (iOS always resolves granted) — best-effort, silently ignored if
-    // denied, since this is a supplementary security signal, never a blocking gate.
-    if (Platform.OS === 'android') {
-      ScreenCapture.requestPermissionsAsync().catch(() => {});
-    }
-  }, []);
+    // Web doesn't support screen capture prevention or detection — skip silently.
+    if (Platform.OS === 'web') return;
 
-  ScreenCapture.useScreenshotListener(() => {
-    if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
-    securityApi
-      .reportScreenshot({ conversationId, targetUserId, platform: Platform.OS })
-      .catch(() => {
-        // Best-effort — a failed report should never interrupt the person's own use of the app.
-      });
-  });
+    let cleanup: (() => void) | undefined;
+
+    (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const SC = require('expo-screen-capture');
+
+        // FLAG_SECURE on Android prevents screen capture at the OS level.
+        await SC.preventScreenCapture('screenshot-report').catch(() => {});
+
+        // Android needs READ_MEDIA_IMAGES permission for the listener to fire.
+        if (Platform.OS === 'android') {
+          await SC.requestPermissionsAsync().catch(() => {});
+        }
+
+        // Report screenshot events to backend so the other participant is notified.
+        const sub = SC.addScreenshotListener(() => {
+          securityApi
+            .reportScreenshot({
+              conversationId,
+              targetUserId,
+              platform: Platform.OS as 'ios' | 'android',
+            })
+            .catch(() => {
+              // Best-effort — a failed report should never interrupt the person's own use of the app.
+            });
+        });
+
+        cleanup = () => {
+          sub?.remove?.();
+          SC.allowScreenCapture('screenshot-report').catch(() => {});
+        };
+      } catch {
+        // expo-screen-capture unavailable — silently skip. Security is best-effort on this platform.
+      }
+    })();
+
+    return () => cleanup?.();
+  }, [conversationId, targetUserId]);
 }

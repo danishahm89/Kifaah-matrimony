@@ -12,7 +12,7 @@ import { FieldLabel } from '../components/FieldLabel';
 import { SelectField } from '../components/SelectField';
 import { SegmentRow } from '../components/SegmentRow';
 import { StripePattern } from '../components/StripePattern';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useReference } from '../api/hooks/useReference';
 import { useAuthStore } from '../store/authStore';
 import { useOnboardingStore } from '../store/onboardingStore';
@@ -303,7 +303,7 @@ export function ProfileSetupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   loading: {
     flex: 1,
     alignItems: 'center',
@@ -381,4 +381,4 @@ const styles = StyleSheet.create({
   finishBtn: {
     marginTop: 8,
   },
-});
+}));

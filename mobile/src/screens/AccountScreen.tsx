@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '../utils/alert';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -7,7 +8,7 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Screen } from '../components/Screen';
 import { TabHeader } from '../components/TabHeader';
 import { Button } from '../components/Button';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useProfileMe } from '../api/hooks/useProfile';
 import { useLogout, useMe } from '../api/hooks/useAuth';
 import { useRunMatchEngine } from '../api/hooks/useMatchEngine';
@@ -132,9 +133,16 @@ export function AccountScreen() {
           </View>
         </View>
 
+        <Button title="Help & Support" variant="outline" onPress={() => navigation.navigate('Support')} />
         <Button title="Frequently asked questions" variant="outline" onPress={() => navigation.navigate('FAQ')} />
-        <Button title="App Health & Logs" variant="outline" onPress={() => navigation.navigate('Health')} />
-        <Button title="Admin Panel" variant="outline" onPress={() => navigation.navigate('Admin')} />
+        {/* Internal tools: the Admin panel still runs on mock data, so keep both out of the
+            member-facing app. They stay reachable at /health and /admin for the team. */}
+        {__DEV__ ? (
+          <>
+            <Button title="App Health & Logs" variant="outline" onPress={() => navigation.navigate('Health')} />
+            <Button title="Admin Panel" variant="outline" onPress={() => navigation.navigate('Admin')} />
+          </>
+        ) : null}
 
         {/* CONTRACT.md §8.3 — blocked users list, block date, revocable with its own confirmation. */}
         <View>
@@ -196,7 +204,7 @@ export function AccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   scroll: {
     padding: 20,
     paddingBottom: 40,
@@ -304,4 +312,4 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: 2,
   },
-});
+}));

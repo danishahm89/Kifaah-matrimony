@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 
 interface Props {
   score: number;
@@ -18,7 +18,7 @@ export function MatchChip({ score, size = 'chip' }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   base: {
     alignSelf: 'flex-start',
     paddingVertical: 4,
@@ -29,4 +29,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
-});
+}));

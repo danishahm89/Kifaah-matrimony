@@ -1,22 +1,12 @@
 import React, { useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  Share,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert } from '../utils/alert';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { ShieldIcon, SendIcon } from '../icons';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import {
   useMessages,
   useSendMessage,
@@ -336,7 +326,7 @@ export function ChatThreadScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   menuBtn: {
     width: 32,
     height: 32,
@@ -484,4 +474,4 @@ const styles = StyleSheet.create({
   sendBtnDisabled: {
     opacity: 0.4,
   },
-});
+}));

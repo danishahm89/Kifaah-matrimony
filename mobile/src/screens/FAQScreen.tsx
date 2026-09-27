@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useFaq } from '../api/hooks/useFaq';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -33,7 +33,7 @@ export function FAQScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   loading: {
     flex: 1,
     alignItems: 'center',
@@ -61,4 +61,4 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontFamily: fonts.regular,
   },
-});
+}));

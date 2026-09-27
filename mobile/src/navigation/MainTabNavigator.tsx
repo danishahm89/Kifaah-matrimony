@@ -87,6 +87,12 @@ function DesktopSidebar({ state, navigation }: BottomTabBarProps) {
 
       {/* Footer */}
       <View style={sidebarStyles.sidebarFooter}>
+        <Pressable
+          onPress={() => navigation.getParent()?.navigate('Support' as never)}
+          style={({ pressed }) => [sidebarStyles.supportLink, { backgroundColor: pressed ? colors.borderHairline : 'transparent' }]}
+        >
+          <Text style={{ fontSize: 14, color: colors.muted }}>❓  Help & Support</Text>
+        </Pressable>
         <Pressable onPress={toggle} style={[sidebarStyles.themeToggle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={{ fontSize: 14, color: colors.ink }}>{mode === 'dark' ? '☀ Light mode' : '🌙 Dark mode'}</Text>
         </Pressable>
@@ -152,9 +158,11 @@ export function MainTabNavigator() {
 
   return (
     <Tab.Navigator
-      screenOptions={{ headerShown: false }}
+      // React Navigation 7 removed `sceneContainerStyle`, so the old marginLeft was silently
+      // ignored and the fixed sidebar covered the content. `tabBarPosition: 'left'` lays the
+      // sidebar and the screen out side by side instead.
+      screenOptions={{ headerShown: false, tabBarPosition: isDesktop ? 'left' : 'bottom' }}
       tabBar={(props) => <CustomTabBar {...props} />}
-      sceneContainerStyle={isDesktop ? { marginLeft: SIDEBAR_WIDTH } : undefined}
     >
       <Tab.Screen name="Discover" component={DiscoverScreen} />
       <Tab.Screen name="Matches" component={MatchesScreen} />
@@ -167,15 +175,12 @@ export function MainTabNavigator() {
 // ─── Sidebar styles ──────────────────────────────────────────────────────────
 const sidebarStyles = StyleSheet.create({
   sidebar: {
-    position: 'fixed' as any,
-    left: 0,
-    top: 0,
-    bottom: 0,
     width: SIDEBAR_WIDTH,
+    height: '100%' as any,
     borderRightWidth: 1,
     flexShrink: 0,
     zIndex: 100,
-    overflowY: 'auto' as any,
+    ...({ overflowY: 'auto' } as any),
   },
   logoArea: {
     paddingHorizontal: 20,
@@ -212,6 +217,12 @@ const sidebarStyles = StyleSheet.create({
   sidebarFooter: {
     padding: 16,
     paddingBottom: 28,
+    gap: 8,
+  },
+  supportLink: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   themeToggle: {
     borderWidth: 1,

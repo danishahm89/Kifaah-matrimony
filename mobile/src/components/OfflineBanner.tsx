@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { logger } from '../utils/logger';
 
 export function OfflineBanner() {
@@ -47,7 +47,7 @@ export function OfflineBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   banner: {
     backgroundColor: '#b91c1c',
     paddingVertical: 8,
@@ -56,4 +56,4 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   text: { fontFamily: fonts.semiBold, fontSize: 13, color: '#fff' },
-});
+}));

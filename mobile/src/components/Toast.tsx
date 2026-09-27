@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useToastStore } from '../store/uiStore';
 import { BellIcon } from '../icons';
 
@@ -18,7 +18,7 @@ export function Toast() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   wrap: {
     position: 'absolute',
     left: 16,
@@ -42,4 +42,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
   },
-});
+}));

@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Alert,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
+import { Alert } from '../utils/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 type AdminTab = 'users' | 'tickets' | 'reports';
 
 const MOCK_USERS = [
@@ -208,7 +206,7 @@ export function AdminScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   header: {
     paddingHorizontal: 16, paddingVertical: 12,
@@ -257,4 +255,4 @@ const styles = StyleSheet.create({
   reportLabel: { fontSize: 13, color: '#555' },
   reportValue: { fontSize: 14, fontFamily: fonts.semiBold ?? fonts.regular, color: '#222' },
   reportNote: { fontSize: 11, color: '#aaa', marginTop: 12, fontStyle: 'italic' },
-});
+}));

@@ -6,7 +6,7 @@ import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { Button } from '../components/Button';
 import { SegmentRow } from '../components/SegmentRow';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { usePricing } from '../api/hooks/usePricing';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -90,7 +90,7 @@ export function PricingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   scroll: {
     padding: 20,
     paddingBottom: 32,
@@ -147,4 +147,4 @@ const styles = StyleSheet.create({
   chooseBtn: {
     marginTop: 14,
   },
-});
+}));

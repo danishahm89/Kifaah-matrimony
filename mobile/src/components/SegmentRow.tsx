@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 
 export interface SegmentOption {
   label: string;
@@ -33,7 +33,7 @@ export function SegmentRow({ options, value, onChange, wrap = true }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 8,
@@ -60,4 +60,4 @@ const styles = StyleSheet.create({
     fontFamily: fonts.extraBold,
     fontSize: 12,
   },
-});
+}));

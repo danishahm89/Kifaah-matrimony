@@ -16,7 +16,7 @@ import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { Button } from '../components/Button';
 import { FieldLabel } from '../components/FieldLabel';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useSendOtp, useVerifyOtp } from '../api/hooks/useAuth';
 import { ApiError } from '../api/client';
 import type { Gender } from '../types';
@@ -400,7 +400,7 @@ export function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   scroll: { padding: 24, paddingTop: 20, paddingBottom: 48, flexGrow: 1 },
   themeToggle: {
     position: 'absolute', top: Platform.OS === 'ios' ? 52 : 12, right: 16,
@@ -505,4 +505,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   roleArrowText: { color: '#ffffff', fontSize: 20, lineHeight: 28, fontWeight: '600' },
-});
+}));

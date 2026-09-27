@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
@@ -19,14 +19,15 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import { Toast } from './src/components/Toast';
-import { colors } from './src/theme/tokens';
+import { colors, themedStyles } from './src/theme/tokens';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
-import { ThemeProvider } from './src/theme/ThemeContext';
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [
     'https://kifaah.alzakwaantours.com',
+    'https://kifaah-web.srv1164487.hstgr.cloud',
     'http://82.112.227.246:8080',
     'http://localhost:8080',
     'http://localhost:19006',
@@ -51,12 +52,37 @@ const linking: LinkingOptions<RootStackParamList> = {
       Pricing: 'pricing',
       Payment: 'payment',
       FAQ: 'faq',
-    Health: 'health',
-    Admin: 'admin',
+      Support: 'support',
+      Health: 'health',
+      Admin: 'admin',
     },
   },
 };
 
+
+// Screens keep their stylesheets at module level, so a theme switch remounts the navigation tree
+// (keyed on the mode) to rebuild them. The current navigation state is carried over, so the person
+// stays on the same screen.
+function ThemedNavigation() {
+  const { mode, colors: themeColors } = useTheme();
+  const navState = useRef<any>(undefined);
+  return (
+    <View key={mode} style={{ flex: 1, backgroundColor: themeColors.bg }}>
+      <NavigationContainer
+        linking={linking}
+        initialState={navState.current}
+        onStateChange={(s) => {
+          navState.current = s;
+        }}
+      >
+        <OfflineBanner />
+        <RootNavigator />
+        <Toast />
+      </NavigationContainer>
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+    </View>
+  );
+}
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -91,12 +117,7 @@ export default function App() {
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <SafeAreaProvider>
-            <NavigationContainer linking={linking}>
-              <OfflineBanner />
-              <RootNavigator />
-              <Toast />
-            </NavigationContainer>
-            <StatusBar style="dark" />
+            <ThemedNavigation />
           </SafeAreaProvider>
         </QueryClientProvider>
       </ThemeProvider>
@@ -105,9 +126,9 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.bg,
   },
-});
+}));

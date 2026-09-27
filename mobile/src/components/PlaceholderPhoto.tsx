@@ -4,7 +4,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { LockIcon } from '../icons';
 import { StripePattern } from './StripePattern';
 
@@ -39,7 +39,7 @@ export function PlaceholderPhoto({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   container: {
     position: 'relative',
     overflow: 'hidden',
@@ -63,4 +63,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 30,
   },
-});
+}));

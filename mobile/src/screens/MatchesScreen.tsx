@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '../utils/alert';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -10,7 +11,7 @@ import { SegmentRow } from '../components/SegmentRow';
 import { PlaceholderPhoto } from '../components/PlaceholderPhoto';
 import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useSentInterests, useReceivedInterests, useAcceptInterest, useDeclineInterest } from '../api/hooks/useInterests';
 import { useBlockUser } from '../api/hooks/useBlocks';
 import { useMe } from '../api/hooks/useAuth';
@@ -191,7 +192,7 @@ export function MatchesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   tabsRow: {
     paddingHorizontal: 20,
     paddingTop: 14,
@@ -243,4 +244,4 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 6,
   },
-});
+}));

@@ -6,7 +6,7 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { Button } from '../components/Button';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { usePricing, useCreateOrder, useVerifyPayment } from '../api/hooks/usePricing';
 import { useSendInterest } from '../api/hooks/useInterests';
 import { useToastStore } from '../store/uiStore';
@@ -211,7 +211,7 @@ export function PaymentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   body: {
     padding: 20,
     gap: 18,
@@ -279,4 +279,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.redDark,
   },
-});
+}));

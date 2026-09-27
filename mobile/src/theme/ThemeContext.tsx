@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
+import { Platform } from 'react-native';
+import { applyTokenTheme } from './tokens';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -66,9 +68,32 @@ const ThemeContext = createContext<ThemeContextType>({
   colors: lightColors,
 });
 
+const THEME_KEY = 'kifaah_theme';
+
+function loadSavedMode(): ThemeMode {
+  if (Platform.OS !== 'web') return 'light';
+  try {
+    return window.localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
+// Apply the saved choice before any screen builds its styles, so there is no light flash.
+const initialMode = loadSavedMode();
+applyTokenTheme(initialMode);
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>('light');
-  const toggle = () => setMode(m => m === 'light' ? 'dark' : 'light');
+  const [mode, setMode] = useState<ThemeMode>(initialMode);
+  const toggle = () => {
+    const next: ThemeMode = mode === 'light' ? 'dark' : 'light';
+    // Update the shared token palette first, then re-render so every screen picks it up.
+    applyTokenTheme(next);
+    if (Platform.OS === 'web') {
+      try { window.localStorage.setItem(THEME_KEY, next); } catch { /* storage blocked */ }
+    }
+    setMode(next);
+  };
   const colors = mode === 'light' ? lightColors : darkColors;
   return (
     <ThemeContext.Provider value={{ mode, toggle, colors }}>

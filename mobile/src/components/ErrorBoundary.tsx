@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { logger } from '../utils/logger';
 
 interface State { hasError: boolean; message: string; }
@@ -34,11 +34,11 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
   }
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: colors.bg },
   emoji: { fontSize: 48, marginBottom: 16 },
   title: { fontFamily: fonts.semiBold, fontSize: 20, color: colors.ink, marginBottom: 8 },
   message: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, textAlign: 'center', marginBottom: 24 },
   btn: { backgroundColor: colors.red, borderRadius: 8, paddingHorizontal: 24, paddingVertical: 12 },
   btnText: { fontFamily: fonts.semiBold, fontSize: 15, color: '#fff' },
-});
+}));

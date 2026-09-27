@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 import { BellIcon, GlobeIcon } from '../icons';
 import { useNotifications, useMarkNotificationsRead } from '../api/hooks/useNotifications';
@@ -32,7 +32,7 @@ export function TabHeader({ title }: Props) {
   const markRead = useMarkNotificationsRead();
   const toggleLang = useToggleLanguage();
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
-  const { colors: themeColors } = useTheme();
+  const { colors: themeColors, mode, toggle } = useTheme();
 
   const hasUnread = notifications.some((n) => !n.read);
 
@@ -60,6 +60,13 @@ export function TabHeader({ title }: Props) {
       <View style={[styles.row, { borderBottomColor: themeColors.border }]}>
         <Text style={[styles.title, { color: themeColors.ink }]}>{title}</Text>
         <View style={styles.actions}>
+          <Pressable
+            style={[styles.iconBtn, { borderColor: themeColors.borderStrong }]}
+            onPress={toggle}
+            accessibilityLabel={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            <Text style={{ fontSize: 14 }}>{mode === 'dark' ? '☀️' : '🌙'}</Text>
+          </Pressable>
           <Pressable style={[styles.iconBtn, { borderColor: themeColors.borderStrong }]} onPress={openNotif}>
             <BellIcon />
             {hasUnread ? <View style={[styles.dot, { backgroundColor: themeColors.accent }]} /> : null}
@@ -100,7 +107,7 @@ export function TabHeader({ title }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -220,4 +227,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.muted,
   },
-});
+}));

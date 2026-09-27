@@ -1,15 +1,13 @@
 import React from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Screen } from '../components/Screen';
 import { TabHeader } from '../components/TabHeader';
-import { PlaceholderPhoto } from '../components/PlaceholderPhoto';
-import { MatchChip } from '../components/MatchChip';
 import { EmptyState } from '../components/EmptyState';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useDiscover } from '../api/hooks/useDiscover';
 import { useAuthStore } from '../store/authStore';
 import { tabStrings } from '../i18n/strings';
@@ -21,90 +19,188 @@ type Nav = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+function ProfileCard({ item, onOpen }: { item: DiscoverCandidate; onOpen: () => void }) {
+  const good = item.score >= 65;
+  return (
+    <Pressable
+      onPress={onOpen}
+      style={({ pressed, hovered }: any) => [styles.card, (pressed || hovered) && styles.cardActive]}
+      accessibilityRole="button"
+      accessibilityLabel={`View profile of ${item.name}`}
+    >
+      <View style={styles.cardTop}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initials(item.name)}</Text>
+          <View style={styles.lockBadge}>
+            <Text style={styles.lockBadgeText}>🔒</Text>
+          </View>
+        </View>
+        <View style={styles.cardInfo}>
+          <Text style={styles.name} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.ageLine}>
+            {item.age} yrs{item.city ? ` · ${item.city}` : ''}
+          </Text>
+        </View>
+        <View style={[styles.scorePill, { backgroundColor: good ? colors.greenBg : colors.lowBg }]}>
+          <Text style={[styles.scoreNum, { color: good ? colors.greenText : colors.lowText }]}>{item.score}%</Text>
+          <Text style={[styles.scoreLabel, { color: good ? colors.greenText : colors.lowText }]}>match</Text>
+        </View>
+      </View>
+
+      <View style={styles.facts}>
+        {item.sect ? (
+          <View style={styles.fact}>
+            <Text style={styles.factText}>🕌 {item.sect}</Text>
+          </View>
+        ) : null}
+        {item.eduProf ? (
+          <View style={styles.fact}>
+            <Text style={styles.factText} numberOfLines={1}>
+              🎓 {item.eduProf}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.cardFooter}>
+        <Text style={styles.privacyNote}>Photo private until approved</Text>
+        <Text style={styles.viewLink}>View profile ›</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 export function DiscoverScreen() {
   const navigation = useNavigation<Nav>();
   const gender = useAuthStore((s) => s.user?.gender ?? 'bride');
   const lang = useAuthStore((s) => s.user?.language ?? 'en');
+  const { width } = useWindowDimensions();
   const { data: candidates = [], isLoading, refetch, isRefetching } = useDiscover();
 
   const feedGenderLabel = gender === 'groom' ? 'sisters' : 'brothers';
+  const columns = Platform.OS === 'web' && width >= 1100 ? 2 : 1;
 
   const openDetail = (id: string) => navigation.navigate('ProfileDetail', { profileId: id, origin: 'discover' });
 
-  const renderItem = ({ item }: { item: DiscoverCandidate }) => (
-    <Pressable style={styles.row} onPress={() => openDetail(item.id)}>
-      <PlaceholderPhoto width={72} height={72} locked intensity={16} iconSize={18} />
-      <View style={styles.rowBody}>
-        <Text style={styles.name}>
-          {item.name}, {item.age}
-        </Text>
-        <Text style={styles.meta}>
-          {item.city} · {item.sect}
-        </Text>
-        <Text style={styles.meta}>{item.eduProf}</Text>
-        <View style={styles.chipWrap}>
-          <MatchChip score={item.score} />
-        </View>
-      </View>
-    </Pressable>
-  );
-
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top']} maxContentWidth={columns === 2 ? 960 : 700}>
       <TabHeader title={tabStrings(lang).discover} />
-      <Text style={styles.subtitle}>
-        Showing {feedGenderLabel} near you, ranked by compatibility · photos and contact stay private until a mutual
-        interest is accepted
-      </Text>
       <FlatList
+        key={`cols-${columns}`}
         data={candidates}
+        numColumns={columns}
         keyExtractor={(item) => item.id}
-        renderItem={renderItem}
+        contentContainerStyle={styles.list}
+        columnWrapperStyle={columns > 1 ? styles.columnWrap : undefined}
+        ListHeaderComponent={
+          <View style={styles.intro}>
+            <Text style={styles.introTitle}>
+              {candidates.length > 0 ? `${candidates.length} suggested ${feedGenderLabel}` : `Suggested ${feedGenderLabel}`}
+            </Text>
+            <Text style={styles.introText}>
+              Ranked by compatibility. Photos and contact details stay private until you both agree.
+            </Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <View style={columns > 1 ? styles.half : undefined}>
+            <ProfileCard item={item} onOpen={() => openDetail(item.id)} />
+          </View>
+        )}
         refreshing={isRefetching && !isLoading}
         onRefresh={refetch}
         ListEmptyComponent={
-          !isLoading ? (
+          isLoading ? (
+            <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
+          ) : (
             <EmptyState text="You've reviewed everyone matching your preferences right now. New recommendations arrive with the weekly match refresh." />
-          ) : null
+          )
         }
       />
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  subtitle: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 4,
-    fontSize: 12,
-    color: colors.muted,
-    fontFamily: fonts.regular,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderHairline,
-  },
-  rowBody: {
-    flex: 1,
-    minWidth: 0,
-  },
-  name: {
-    fontFamily: fonts.extraBold,
-    fontSize: 15,
-    color: colors.ink,
-  },
-  meta: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 2,
-    fontFamily: fonts.regular,
-  },
-  chipWrap: {
-    marginTop: 8,
-  },
-});
+const styles = themedStyles(() =>
+  StyleSheet.create({
+    list: { padding: 16, paddingBottom: 32, gap: 12 },
+    columnWrap: { gap: 12 },
+    half: { flex: 1 },
+    intro: { paddingHorizontal: 4, paddingBottom: 4 },
+    introTitle: { fontFamily: fonts.extraBold, fontSize: 16, color: colors.ink },
+    introText: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, marginTop: 4, lineHeight: 18 },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 16,
+      gap: 14,
+    },
+    cardActive: { borderColor: colors.primary },
+    cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    avatar: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: colors.greenBg,
+      borderWidth: 2,
+      borderColor: colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: { fontFamily: fonts.extraBold, fontSize: 20, color: colors.greenText },
+    lockBadge: {
+      position: 'absolute',
+      right: -4,
+      bottom: -4,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    lockBadgeText: { fontSize: 10 },
+    cardInfo: { flex: 1, minWidth: 0 },
+    name: { fontFamily: fonts.extraBold, fontSize: 17, color: colors.ink },
+    ageLine: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, marginTop: 3 },
+    scorePill: { alignItems: 'center', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 12 },
+    scoreNum: { fontFamily: fonts.extraBold, fontSize: 16 },
+    scoreLabel: { fontFamily: fonts.semiBold, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.4 },
+    facts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    fact: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderWidth: 1,
+      borderColor: colors.borderHairline,
+      maxWidth: '100%',
+    },
+    factText: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.ink },
+    cardFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderTopWidth: 1,
+      borderTopColor: colors.borderHairline,
+      paddingTop: 12,
+    },
+    privacyNote: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+    viewLink: { fontFamily: fonts.extraBold, fontSize: 13, color: colors.primary },
+  })
+);

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Animated, StyleSheet, TextInput, TextInputProps } from 'react-native';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 
 export function TextField(props: TextInputProps & { multiline?: boolean }) {
   const focusAnim = useRef(new Animated.Value(0)).current;
@@ -33,7 +33,7 @@ export function TextField(props: TextInputProps & { multiline?: boolean }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   input: {
     minHeight: 40,
     backgroundColor: colors.surface,
@@ -56,4 +56,4 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     paddingTop: 10,
   },
-});
+}));

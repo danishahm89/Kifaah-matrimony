@@ -8,7 +8,7 @@ import { Screen } from '../components/Screen';
 import { TabHeader } from '../components/TabHeader';
 import { PlaceholderPhoto } from '../components/PlaceholderPhoto';
 import { EmptyState } from '../components/EmptyState';
-import { colors, fonts } from '../theme/tokens';
+import { colors, fonts, themedStyles } from '../theme/tokens';
 import { useConversations, useArchivedConversations } from '../api/hooks/useChat';
 import { SegmentRow } from '../components/SegmentRow';
 import { useAuthStore } from '../store/authStore';
@@ -112,7 +112,7 @@ export function ChatListScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => StyleSheet.create({
   tabsRow: {
     paddingHorizontal: 20,
     paddingTop: 14,
@@ -144,4 +144,4 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontFamily: fonts.regular,
   },
-});
+}));
